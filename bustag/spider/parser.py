@@ -1,6 +1,7 @@
 '''
 html parser to extract data
 '''
+import sys
 import re
 from collections import namedtuple
 from requests_html import HTML
@@ -25,7 +26,13 @@ def parse_item(text):
     title_css = 'body > div.container > h3'
     title = html.find(title_css)[0].text
     cover_img_css = 'body > div.container > div.row.movie > div.col-md-9.screencap > a'
-    cover_img_url = "http://www.javbus.com" + html.find(cover_img_css)[0].attrs['href']
+    a = "http://www.javbus.com"
+    b = html.find(cover_img_css)[0].attrs['href']
+    if re.match(r'^https?:/{2}\w.+$', b):   
+        cover_img_url = b		
+    else:
+        cover_img_url = a + b
+    #cover_img_url = "http://www.javbus.com" + html.find(cover_img_css)[0].attrs['href']
     tags_css = 'body > div.container > div.row.movie > div.col-md-3.info'
     tags = html.find(tags_css)[0].find('p')
     release_date = tags[1].text
