@@ -9,7 +9,7 @@ from .parser import parse_item
 from .db import save, Item
 from bustag.util import APP_CONFIG, get_full_url, logger
 router = get_router()
-MAXPAGE = 30
+MAXPAGE = 300
 
 
 def get_url_by_fanhao(fanhao):
