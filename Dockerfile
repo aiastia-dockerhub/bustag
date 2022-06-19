@@ -6,7 +6,7 @@ WORKDIR /app
 # Install app dependencies
 COPY ./docker/sources.list .
 
-#RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
+RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
 
 RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install \
