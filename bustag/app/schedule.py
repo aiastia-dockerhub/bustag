@@ -17,7 +17,7 @@ def download(loop, no_parse_links=False, urls=None):
     下载更新数据
 
     Args:
-        urls:tuple - tuple of urls
+        urls: tuple - tuple of urls
     """
     print('start download')
     # reset sys.argv
@@ -29,8 +29,15 @@ def download(loop, no_parse_links=False, urls=None):
     if no_parse_links:
         count = len(urls)
     extra_options = APP_CONFIG.get('options', {})
-    options = {'no_parse_links': no_parse_links,
-               'roots': urls, 'count': count}
+    options = {
+        'no_parse_links': no_parse_links,
+        'roots': urls,
+        'count': count,
+        'headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+            'Cookie': APP_CONFIG['download.cookie']
+        }
+    }
     extra_options.update(options)
 
     aspider.download(loop, extra_options)
