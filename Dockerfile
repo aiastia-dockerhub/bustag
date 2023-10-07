@@ -6,7 +6,7 @@ WORKDIR /app
 # Install app dependencies
 COPY ./docker/sources.list .
 
-RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
+#RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
 
 RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install \
@@ -20,8 +20,8 @@ COPY requirements.txt .
 
 RUN mkdir /install
 
-RUN pip download --destination-directory /install -r /app/requirements.txt -i https://pypi.douban.com/simple
-#RUN pip download --destination-directory /install -r /app/requirements.txt
+#RUN pip download --destination-directory /install -r /app/requirements.txt -i https://pypi.douban.com/simple
+RUN pip download --destination-directory /install -r /app/requirements.txt
 
 FROM python:3.7.4-slim  as release
 
