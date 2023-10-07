@@ -8,7 +8,7 @@ on:
       - 'v*'
   pull_request:
     branches:
-      - 'master'
+      - 'text'
 
 jobs:
   docker:
@@ -36,4 +36,4 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: aiastia/bustag:dev
+          tags: aiastia/bustag:test
