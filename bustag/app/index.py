@@ -261,11 +261,13 @@ def img_proxy():
             response.status = 502
             return f'Failed to fetch image: {e}'
 
-    # 写入缓存
+    # 写入缓存（写入临时文件后重命名，防止写坏）
     if cache_enabled:
         try:
-            with open(cache_path, 'wb') as f:
+            tmp_path = cache_path + '.tmp'
+            with open(tmp_path, 'wb') as f:
                 f.write(img_data)
+            os.rename(tmp_path, cache_path)
         except Exception:
             pass  # 缓存写入失败不影响返回
 

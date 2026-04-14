@@ -34,9 +34,18 @@ def train():
     total = len(X_test) + len(X_train)
     if total < MIN_TRAIN_NUM:
         raise ValueError(f'训练数据不足, 无法训练模型. 需要{MIN_TRAIN_NUM}, 当前{total}')
+
+    # 检查训练数据是否同时包含喜欢和不喜欢两个类别
+    import numpy as np
+    unique_classes = np.unique(y_train)
+    if len(unique_classes) < 2:
+        raise ValueError(
+            f'训练数据只有一个类别({unique_classes}), 无法训练模型. '
+            f'请确保既有"喜欢"也有"不喜欢"的打标数据')
+
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    confusion_mtx = confusion_matrix(y_test, y_pred)
+    confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])
     scores = evaluate(confusion_mtx, y_test, y_pred)
     models_data = (model, scores)
     dump_model(get_data_path(MODEL_FILE), models_data)
