@@ -2,7 +2,7 @@
 % max_page = page_info[1]
 % total_items = page_info[0]
 % setdefault('like', '')
-% like_param = '&like={}'.format(like) if like else ''
+% like_param = '&like={}'.format(like) if like is not None and like != '' else ''
 <div class="row">
 	<div class="col-12 text-center">
 	<h6>
