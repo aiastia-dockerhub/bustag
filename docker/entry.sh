@@ -10,6 +10,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
 [download]
 api_base_url = http://localhost:3000
 auth_token = 
+javbus_url = https://www.javbus.com
+img_base_url = https://www.javbus.com
 count = 10
 interval = 10800
 CONFEOF
@@ -24,6 +26,16 @@ fi
 if [ -n "$JAVBUS_AUTH_TOKEN" ]; then
     sed -i "s|auth_token = .*|auth_token = $JAVBUS_AUTH_TOKEN|g" "$CONFIG_FILE"
     echo "Configured auth_token"
+fi
+
+if [ -n "$JAVBUS_URL" ]; then
+    sed -i "s|javbus_url = .*|javbus_url = $JAVBUS_URL|g" "$CONFIG_FILE"
+    echo "Configured javbus_url: $JAVBUS_URL"
+fi
+
+if [ -n "$JAVBUS_IMG_URL" ]; then
+    sed -i "s|img_base_url = .*|img_base_url = $JAVBUS_IMG_URL|g" "$CONFIG_FILE"
+    echo "Configured img_base_url: $JAVBUS_IMG_URL"
 fi
 
 echo "Starting bustag server..."

@@ -4,8 +4,24 @@
 替代原有的 HTML 解析方式
 '''
 from collections import namedtuple
+from bustag.util import APP_CONFIG
 
 Tag = namedtuple('Tag', ['type', 'value', 'link'])
+
+
+def _get_img_base_url():
+    '''获取图片基础 URL'''
+    return APP_CONFIG.get('download.img_base_url', 'https://www.javbus.com')
+
+
+def _fix_img_url(img_path):
+    '''补全图片地址为完整 URL'''
+    if not img_path:
+        return ''
+    if img_path.startswith(('http://', 'https://')):
+        return img_path
+    base = _get_img_base_url().rstrip('/')
+    return f'{base}/{img_path.lstrip("/")}'
 
 
 def parse_movie_detail(detail):
@@ -34,7 +50,7 @@ def parse_movie_detail(detail):
 
     meta['fanhao'] = movie_id
     meta['title'] = title_text
-    meta['cover_img_url'] = detail.get('img', '')
+    meta['cover_img_url'] = _fix_img_url(detail.get('img', ''))
     meta['release_date'] = detail.get('date', '')
     meta['length'] = str(detail.get('videoLength', ''))
 

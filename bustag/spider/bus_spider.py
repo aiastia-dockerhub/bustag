@@ -48,9 +48,9 @@ def fetch_and_save_movie(movie_id):
             return False
 
         meta, tags = parse_movie_detail(detail)
-        # 构造 URL（兼容原有数据库字段）
-        api_base = APP_CONFIG.get('download.api_base_url', 'http://localhost:3000')
-        meta['url'] = f'{api_base}/api/movies/{movie_id}'
+        # URL 指向 javbus 网站（可通过环境变量配置）
+        javbus_url = APP_CONFIG.get('download.javbus_url', 'https://www.javbus.com')
+        meta['url'] = f'{javbus_url}/{movie_id}'
 
         save(meta, tags)
         logger.info(f'Saved movie: {movie_id}')
