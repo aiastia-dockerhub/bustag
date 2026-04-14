@@ -289,13 +289,28 @@ def img_proxy():
 @route('/search')
 def search():
     query = request.query.get('q', '').strip()
+    tag_value = request.query.get('tag', '').strip()
+    page = int(request.query.get('page', 1))
+    genre_tags = db.get_genre_tags()
     item = None
+    tag_items = []
+    page_info = None
+
     if query:
+        # 番号搜索
         item = Item.get_by_fanhao(query)
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
-    return template('search', query=query, item=item, path=request.path)
+    elif tag_value:
+        # 标签搜索（支持分页）
+        tag_items, page_info = db.get_items_by_tag(tag_value, page=page)
+        for it in tag_items:
+            _remove_extra_tags(it)
+
+    return template('search', query=query, tag_value=tag_value,
+                    item=item, tag_items=tag_items, page_info=page_info,
+                    genre_tags=genre_tags, path=request.path)
 
 
 # @route('/about')

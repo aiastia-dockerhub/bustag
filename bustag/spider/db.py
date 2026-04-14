@@ -347,6 +347,45 @@ def get_today_recommend_count():
     return q.count()
 
 
+def get_genre_tags():
+    '''
+    获取所有 genre 类型的标签，按字母排序
+    '''
+    tags = (Tag.select(Tag.value)
+            .where(Tag.type_ == 'genre')
+            .order_by(Tag.value)
+            .distinct())
+    return [t.value for t in tags]
+
+
+def get_items_by_tag(tag_value, page=1, page_size=10):
+    '''
+    按标签值搜索关联的 Item，支持分页
+    '''
+    items_list = []
+    tag = Tag.get_or_none(Tag.value == tag_value)
+    if not tag:
+        return items_list, (0, 0, 1, page_size)
+
+    q = (Item.select(Item)
+         .join(ItemTag, on=(ItemTag.item == Item.fanhao))
+         .join(Tag, on=(ItemTag.tag == Tag.id))
+         .where(Tag.value == tag_value)
+         .order_by(Item.id.desc())
+         )
+    total_items = q.count()
+    if page is not None:
+        q = q.paginate(page, page_size)
+    items = get_tags_for_items(q)
+    for item in items:
+        Item.loadit(item)
+        items_list.append(item)
+
+    total_pages = (total_items + page_size - 1) // page_size
+    page_info = (total_items, total_pages, page, page_size)
+    return items_list, page_info
+
+
 def get_tags_for_items(items_query):
     item_tag_query = ItemTag.select()
     tag_query = Tag.select()
