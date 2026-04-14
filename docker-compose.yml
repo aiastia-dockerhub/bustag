@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  javbus-api:
+    image: ovnrain/javbus-api
+    container_name: javbus-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # 如果需要认证，取消注释以下环境变量
+    # environment:
+    #   - JAVBUS_API_TOKEN=your_token_here
+
+  bustag:
+    image: aiastia/bustag:test
+    container_name: bustag
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - JAVBUS_API_URL=http://javbus-api:3000
+      # - JAVBUS_AUTH_TOKEN=your_token_here
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - javbus-api
