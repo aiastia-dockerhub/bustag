@@ -4,7 +4,7 @@ import sys
 import configparser
 import pytz
 import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger('bustag')
 TESTING = False
@@ -14,7 +14,9 @@ MODEL_PATH = 'model/'
 APP_CONFIG = {}
 DEFAULT_CONFIG = {
     'download': {
-        'count': 100,
+        'api_base_url': 'http://localhost:3000',
+        'auth_token': '',
+        'count': 10,
         'interval': 3600
     }
 }
@@ -59,8 +61,15 @@ def get_now_time():
 
 
 def get_full_url(path):
-    root_path = APP_CONFIG['download.root_path']
-    full_url = urljoin(root_path, path)
+    '''
+    获取完整 URL
+    如果 path 已经是完整 URL，直接返回
+    否则与 api_base_url 拼接
+    '''
+    if path and path.startswith(('http://', 'https://')):
+        return path
+    root_path = APP_CONFIG.get('download.api_base_url', 'http://localhost:3000')
+    full_url = urljoin(root_path + '/', path.lstrip('/'))
     return full_url
 
 

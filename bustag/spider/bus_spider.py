@@ -1,61 +1,161 @@
 '''
-define url routing process logic
+数据抓取调度模块
+使用 javbus-api 替代原有的 aspider 网站爬虫
 '''
-import sys
-import os
-import signal
-from aspider.routeing import get_router
-from .parser import parse_item
+import time
+from .api_client import get_movies, get_movie_detail, search_movies
+from .parser import parse_movie_detail
 from .db import save, Item
-from bustag.util import APP_CONFIG, get_full_url, logger
-router = get_router()
+from bustag.util import APP_CONFIG, logger
+
 MAXPAGE = 30
 
 
 def get_url_by_fanhao(fanhao):
-    # return full url
-    url = get_full_url(fanhao)
-    return url
+    '''
+    保留兼容接口：通过番号获取影片详情并保存
+    现在使用 API 而非 URL
+
+    Args:
+        fanhao: 番号
+
+    Returns:
+        str: 番号（保持接口兼容）
+    '''
+    return fanhao
 
 
-def verify_page_path(path, no):
-    logger.debug(f'verify page {path} , args {no}')
-    no = int(no)
-    if no <= MAXPAGE:
+def fetch_and_save_movie(movie_id):
+    '''
+    获取单个影片详情并保存到数据库
+
+    Args:
+        movie_id: 番号
+
+    Returns:
+        bool: 是否成功保存
+    '''
+    # 检查是否已存在
+    exists = Item.get_by_fanhao(movie_id)
+    if exists:
+        logger.debug(f'Movie already exists: {movie_id}, skipping')
+        return False
+
+    try:
+        detail = get_movie_detail(movie_id)
+        if not detail:
+            logger.warning(f'No detail returned for: {movie_id}')
+            return False
+
+        meta, tags = parse_movie_detail(detail)
+        # 构造 URL（兼容原有数据库字段）
+        api_base = APP_CONFIG.get('download.api_base_url', 'http://localhost:3000')
+        meta['url'] = f'{api_base}/api/movies/{movie_id}'
+
+        save(meta, tags)
+        logger.info(f'Saved movie: {movie_id}')
+        print(f'item {movie_id} is processed')
         return True
-    else:
+    except Exception as e:
+        logger.error(f'Failed to fetch/save movie {movie_id}: {e}')
         return False
 
 
-@router.route('/page/<no>', verify_page_path)
-def process_page(text, path, no):
+def download_movies(pages=None):
     '''
-    process list page
+    批量下载影片数据
+    遍历 API 影片列表分页，获取详情并保存
+
+    Args:
+        pages: 要下载的页数，None 则使用配置中的 count
     '''
-    logger.debug(f'page {no} has length {len(text)}')
-    print(f'process page {no}')
+    if pages is None:
+        pages = int(APP_CONFIG.get('download.count', 10))
+
+    total_saved = 0
+    total_processed = 0
+
+    for page in range(1, pages + 1):
+        logger.info(f'Fetching movie list page {page}/{pages}')
+        print(f'process page {page}')
+
+        try:
+            result = get_movies(page=page, magnet='all')
+        except Exception as e:
+            logger.error(f'Failed to fetch page {page}: {e}')
+            continue
+
+        movies = result.get('movies', [])
+        if not movies:
+            logger.info(f'No more movies on page {page}, stopping')
+            break
+
+        for movie in movies:
+            movie_id = movie.get('id', '')
+            if not movie_id:
+                continue
+
+            total_processed += 1
+            if fetch_and_save_movie(movie_id):
+                total_saved += 1
+
+            # 请求间隔，避免过快
+            time.sleep(0.5)
+
+        # 分页间隔
+        time.sleep(1)
+
+    logger.info(f'Download complete: processed {total_processed}, saved {total_saved}')
+    print(f'Download complete: processed {total_processed}, saved {total_saved}')
+    return total_saved
 
 
-def verify_fanhao(path, fanhao):
+def download_by_fanhaos(fanhaos):
     '''
-    verify fanhao before add it to queue
+    根据番号列表下载影片数据
+
+    Args:
+        fanhaos: list - 番号列表
+
+    Returns:
+        int: 成功保存的数量
     '''
-    exists = Item.get_by_fanhao(fanhao)
-    logger.debug(
-        f'verify {fanhao}: , exists:{exists is not None}, skip {path}')
-    return exists is None
+    total_saved = 0
+
+    for fanhao in fanhaos:
+        if fetch_and_save_movie(fanhao):
+            total_saved += 1
+        time.sleep(0.5)
+
+    logger.info(f'Download by fanhaos complete: saved {total_saved}/{len(fanhaos)}')
+    return total_saved
 
 
-@router.route('/<fanhao:[\w]+-[\d]+>', verify_fanhao, no_parse_links=True)
-def process_item(text, path, fanhao):
+def search_and_download(keyword, pages=1):
     '''
-    process item page
+    搜索并下载影片数据
+
+    Args:
+        keyword: 搜索关键字
+        pages: 下载页数
+
+    Returns:
+        int: 成功保存的数量
     '''
-    logger.debug(f'process item {fanhao}')
-    url = path
-    meta, tags = parse_item(text)
-    meta.update(url=url)
-#     logger.debug('meta keys', len(meta.keys()))
-#     logger.debug('tag count', len(tags))
-    save(meta, tags)
-    print(f'item {fanhao} is processed')
+    total_saved = 0
+
+    for page in range(1, pages + 1):
+        try:
+            result = search_movies(keyword=keyword, page=page, magnet='all')
+        except Exception as e:
+            logger.error(f'Search failed for "{keyword}" page {page}: {e}')
+            continue
+
+        movies = result.get('movies', [])
+        for movie in movies:
+            movie_id = movie.get('id', '')
+            if movie_id and fetch_and_save_movie(movie_id):
+                total_saved += 1
+            time.sleep(0.5)
+
+    return total_saved

@@ -1,76 +1,76 @@
-import sys
-import asyncio
+'''
+定时任务调度模块
+使用 javbus-api 替代原有的 aspider 爬虫
+'''
+import threading
 from datetime import datetime, timedelta
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
-from aspider import aspider
 from bustag.spider import bus_spider
 from bustag.util import logger, APP_CONFIG
 
 scheduler = None
-loop = None
 
 
-def download(loop, no_parse_links=False, urls=None):
-    """
+def download(fanhaos=None):
+    '''
     下载更新数据
 
     Args:
-        urls:tuple - tuple of urls
-    """
+        fanhaos: list - 指定要下载的番号列表，为 None 则批量下载
+    '''
     print('start download')
-    # reset sys.argv
-    sys.argv = sys.argv[:1]
-    if not urls:
-        logger.warning('no links to download')
-        return
-    count = APP_CONFIG['download.count']
-    if no_parse_links:
-        count = len(urls)
-    extra_options = APP_CONFIG.get('options', {})
-    options = {'no_parse_links': no_parse_links,
-               'roots': urls, 'count': count}
-    extra_options.update(options)
+    if fanhaos:
+        logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items')
+        bus_spider.download_by_fanhaos(fanhaos)
+    else:
+        pages = int(APP_CONFIG.get('download.count', 10))
+        bus_spider.download_movies(pages=pages)
 
-    aspider.download(loop, extra_options)
+    # 下载完成后尝试推荐
     try:
         import bustag.model.classifier as clf
-
         clf.recommend()
     except FileNotFoundError:
         print('还没有训练好的模型, 无法推荐')
 
 
 def start_scheduler():
-    global scheduler, loop
+    '''
+    启动定时调度器
+    '''
+    global scheduler
 
     interval = int(APP_CONFIG.get('download.interval', 1800))
-    loop = asyncio.new_event_loop()
-    scheduler = AsyncIOScheduler(event_loop=loop)
+
+    scheduler = BackgroundScheduler()
+
+    # 启动后立即执行一次
     t1 = datetime.now() + timedelta(seconds=1)
-    int_trigger = IntervalTrigger(seconds=interval)
     date_trigger = DateTrigger(run_date=t1)
-    urls = (APP_CONFIG['download.root_path'],)
-    # add for down at server start
-    scheduler.add_job(download, trigger=date_trigger, args=(loop, False, urls))
-    scheduler.add_job(download, trigger=int_trigger, args=(loop, False, urls))
+    scheduler.add_job(download, trigger=date_trigger)
+
+    # 定时执行
+    int_trigger = IntervalTrigger(seconds=interval)
+    scheduler.add_job(download, trigger=int_trigger)
+
     scheduler.start()
-    asyncio.set_event_loop(loop)
-    loop.run_forever()
+    logger.info(f'Scheduler started, interval={interval}s')
 
 
-def add_download_job(urls):
-    add_job(download, (urls,))
-
-
-def add_job(job_func, args):
+def add_download_job(fanhaos):
     '''
-    add a job to scheduler
+    添加指定番号的下载任务
+
+    Args:
+        fanhaos: list - 番号列表
     '''
-    default_args = (loop, True)
-    default_args = default_args + args
-    logger.debug(default_args)
     t1 = datetime.now() + timedelta(seconds=10)
     date_trigger = DateTrigger(run_date=t1)
-    scheduler.add_job(job_func, trigger=date_trigger, args=default_args)
+    if scheduler:
+        scheduler.add_job(download, trigger=date_trigger, args=(fanhaos,))
+        logger.info(f'Added download job for {len(fanhaos)} fanhaos')
+    else:
+        logger.warning('Scheduler not running, downloading directly')
+        download(fanhaos)
