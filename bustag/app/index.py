@@ -8,6 +8,7 @@ import hashlib
 import requests as req_lib
 from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
+from bustag.util import APP_CONFIG
 
 dirname = os.path.dirname(os.path.realpath(__file__))
 if getattr(sys, 'frozen', False):
