@@ -10,6 +10,9 @@ from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
 from bustag.util import APP_CONFIG
 
+# 增大 POST 请求体限制（默认 100KB，番号多时容易超限）
+bottle.BaseRequest.MEMFILE_MAX = 10 * 1024 * 1024  # 10MB
+
 dirname = os.path.dirname(os.path.realpath(__file__))
 if getattr(sys, 'frozen', False):
     dirname = sys._MEIPASS
