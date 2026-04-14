@@ -4,6 +4,7 @@ import traceback
 import sys
 import os
 import bottle
+import requests as req_lib
 from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
 
@@ -195,6 +196,29 @@ def load_db():
         else:
             errmsg = '请上传数据库文件'
     return template('load_db', path=request.path, msg=msg, errmsg=errmsg)
+
+
+@route('/img_proxy')
+def img_proxy():
+    '''图片代理：解决 javbus 图片反盗链和 IP 封锁问题'''
+    img_url = request.query.get('url', '')
+    if not img_url:
+        response.status = 400
+        return 'Missing url parameter'
+    try:
+        # 使用 javbus 的 Referer 来绕过反盗链
+        headers = {
+            'Referer': 'https://www.javbus.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        r = req_lib.get(img_url, headers=headers, timeout=15, stream=True)
+        response.content_type = r.headers.get('Content-Type', 'image/jpeg')
+        # 缓存 1 小时
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        return r.content
+    except Exception as e:
+        response.status = 502
+        return f'Failed to fetch image: {e}'
 
 
 @route('/about')

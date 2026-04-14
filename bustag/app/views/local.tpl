@@ -20,7 +20,7 @@
 %for local_item in items:
 	<div class="row py-3">
 		<div class="col-12 col-md-4">
-		<img class="img-fluid img-thumbnail coverimg" alt="点击放大" src={{local_item.item.cover_img_url}}>
+		<img class="img-fluid img-thumbnail coverimg" alt="点击放大" src="/img_proxy?url={{local_item.item.cover_img_url}}">
 		</div>
 
 			<div class="col-7 col-md-5">
