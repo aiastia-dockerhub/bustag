@@ -14,6 +14,10 @@ javbus_url = https://www.javbus.com
 img_base_url = https://www.javbus.com
 count = 10
 interval = 10800
+api_interval = 0.5
+batch_size = 100
+batch_interval = 5
+img_cache_enabled = true
 CONFEOF
 fi
 

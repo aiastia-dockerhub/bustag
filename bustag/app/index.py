@@ -4,6 +4,7 @@ import traceback
 import sys
 import os
 import bottle
+import hashlib
 import requests as req_lib
 from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
@@ -198,27 +199,81 @@ def load_db():
     return template('load_db', path=request.path, msg=msg, errmsg=errmsg)
 
 
+# 图片代理相关
+_img_semaphore = threading.Semaphore(3)  # 最多 3 个并发图片请求
+
+
+def _get_img_cache_dir():
+    '''获取图片缓存目录'''
+    cache_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data', 'img_cache')
+    cache_dir = os.path.abspath(cache_dir)
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
+
+
+def _get_cached_img_path(img_url):
+    '''根据图片 URL 计算缓存文件路径'''
+    url_hash = hashlib.md5(img_url.encode()).hexdigest()
+    # 尝试从 URL 推断扩展名
+    ext = '.jpg'
+    for e in ['.png', '.gif', '.webp', '.jpeg']:
+        if img_url.lower().endswith(e):
+            ext = e
+            break
+    return os.path.join(_get_img_cache_dir(), f'{url_hash}{ext}')
+
+
 @route('/img_proxy')
 def img_proxy():
-    '''图片代理：解决 javbus 图片反盗链和 IP 封锁问题'''
+    '''图片代理：磁盘缓存 + 并发控制，解决 javbus 图片封锁'''
     img_url = request.query.get('url', '')
     if not img_url:
         response.status = 400
         return 'Missing url parameter'
-    try:
-        # 使用 javbus 的 Referer 来绕过反盗链
-        headers = {
-            'Referer': 'https://www.javbus.com/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        r = req_lib.get(img_url, headers=headers, timeout=15, stream=True)
-        response.content_type = r.headers.get('Content-Type', 'image/jpeg')
-        # 缓存 1 小时
-        response.headers['Cache-Control'] = 'public, max-age=3600'
-        return r.content
-    except Exception as e:
-        response.status = 502
-        return f'Failed to fetch image: {e}'
+
+    # 检查磁盘缓存
+    cache_enabled = APP_CONFIG.get('download.img_cache_enabled', 'true').lower() != 'false'
+    cache_path = _get_cached_img_path(img_url)
+
+    if cache_enabled and os.path.exists(cache_path):
+        # 缓存命中，直接返回本地文件
+        ext = os.path.splitext(cache_path)[1]
+        content_types = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                         '.gif': 'image/gif', '.webp': 'image/webp'}
+        response.content_type = content_types.get(ext, 'image/jpeg')
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+        response.headers['X-Cache'] = 'HIT'
+        with open(cache_path, 'rb') as f:
+            return f.read()
+
+    # 缓存未命中，从 javbus 下载（并发控制）
+    with _img_semaphore:
+        try:
+            headers = {
+                'Referer': 'https://www.javbus.com/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            r = req_lib.get(img_url, headers=headers, timeout=15)
+            r.raise_for_status()
+            img_data = r.content
+        except Exception as e:
+            response.status = 502
+            return f'Failed to fetch image: {e}'
+
+    # 写入缓存
+    if cache_enabled:
+        try:
+            with open(cache_path, 'wb') as f:
+                f.write(img_data)
+        except Exception:
+            pass  # 缓存写入失败不影响返回
+
+    content_type = r.headers.get('Content-Type', 'image/jpeg')
+    response.content_type = content_type
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    response.headers['X-Cache'] = 'MISS'
+    return img_data
 
 
 @route('/about')

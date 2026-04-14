@@ -3,8 +3,31 @@ javbus-api 客户端封装
 使用 https://github.com/ovnrain/javbus-api 提供的 REST API
 替代原有的网站爬虫方式
 '''
+import time
+import threading
 import requests
 from bustag.util import logger, APP_CONFIG
+
+# 全局速率控制
+_last_request_time = 0
+_rate_lock = threading.Lock()
+
+
+def _get_api_interval():
+    '''获取 API 请求间隔（秒）'''
+    return float(APP_CONFIG.get('download.api_interval', '0.5'))
+
+
+def _rate_limit():
+    '''请求速率限制，确保请求间隔不低于配置值'''
+    global _last_request_time
+    with _rate_lock:
+        now = time.time()
+        interval = _get_api_interval()
+        elapsed = now - _last_request_time
+        if elapsed < interval:
+            time.sleep(interval - elapsed)
+        _last_request_time = time.time()
 
 
 def get_api_base_url():
@@ -31,7 +54,7 @@ def _get_headers():
 
 def _request(endpoint, params=None):
     '''
-    发送 API 请求
+    发送 API 请求（自动速率控制）
 
     Args:
         endpoint: API 端点路径（如 /api/movies）
@@ -43,6 +66,8 @@ def _request(endpoint, params=None):
     Raises:
         requests.RequestException: 请求失败时抛出
     '''
+    _rate_limit()
+
     base_url = get_api_base_url().rstrip('/')
     url = f'{base_url}{endpoint}'
     headers = _get_headers()

@@ -101,8 +101,7 @@ def download_movies(pages=None):
                 total_saved += 1
                 page_saved += 1
 
-            # 请求间隔，避免过快
-            time.sleep(0.5)
+            # 请求间隔已由 api_client 全局控制，无需额外等待
 
         # 如果整页都是重复的，说明后面的页更旧，提前停止
         if page_saved == 0:
@@ -111,7 +110,7 @@ def download_movies(pages=None):
             break
 
         # 分页间隔
-        time.sleep(1)
+        time.sleep(2)
 
     logger.info(f'Download complete: processed {total_processed}, saved {total_saved}')
     print(f'Download complete: processed {total_processed}, saved {total_saved}')
@@ -121,6 +120,7 @@ def download_movies(pages=None):
 def download_by_fanhaos(fanhaos):
     '''
     根据番号列表下载影片数据
+    超过 batch_size 时自动分批处理，批次间暂停避免过快
 
     Args:
         fanhaos: list - 番号列表
@@ -129,11 +129,22 @@ def download_by_fanhaos(fanhaos):
         int: 成功保存的数量
     '''
     total_saved = 0
+    batch_size = int(APP_CONFIG.get('download.batch_size', '100'))
+    batch_interval = float(APP_CONFIG.get('download.batch_interval', '5'))
 
-    for fanhao in fanhaos:
+    total = len(fanhaos)
+    for i, fanhao in enumerate(fanhaos):
+        total_processed = i + 1
         if fetch_and_save_movie(fanhao):
             total_saved += 1
-        time.sleep(0.5)
+
+        # 分批处理：每 batch_size 个暂停
+        if total_processed % batch_size == 0 and total_processed < total:
+            batch_num = total_processed // batch_size
+            logger.info(f'Batch {batch_num} done ({total_processed}/{total}), '
+                       f'waiting {batch_interval}s before next batch')
+            print(f'Batch {batch_num} done ({total_processed}/{total}), pausing...')
+            time.sleep(batch_interval)
 
     logger.info(f'Download by fanhaos complete: saved {total_saved}/{len(fanhaos)}')
     return total_saved
@@ -164,6 +175,5 @@ def search_and_download(keyword, pages=1):
             movie_id = movie.get('id', '')
             if movie_id and fetch_and_save_movie(movie_id):
                 total_saved += 1
-            time.sleep(0.5)
 
     return total_saved
