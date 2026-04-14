@@ -19,7 +19,7 @@
 %#generate list of rows of items
 % i = 1
 %for item in items:
-<form id="form-{{i}}" action="/tag/{{item.fanhao}}?page={{curr_page}}&like={{like if like is not None else ''}}" method="post">
+<form id="form-{{i}}" action="/tag/{{item.fanhao}}?page={{curr_page}}{{'&like=' + str(like) if like is not None else ''}}" method="post">
 	<div class="row py-3">
 		<div class="col-12 col-md-4">
 		<img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">

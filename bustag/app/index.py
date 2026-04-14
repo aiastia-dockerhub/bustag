@@ -87,7 +87,11 @@ def tag(fanhao):
             logger.debug(f'updated item_rate for fanhao:{fanhao}')
     page = int(request.query.get('page', 1))
     like = request.query.get('like')
-    url = f'/tagit?page={page}&like={like}'
+    # like 为空或 None 时不加参数
+    url = f'/tagit?page={page}'
+    if like is not None and like != '' and like != 'None':
+        url += f'&like={like}'
+    formid = request.forms.get('formid')
     if formid:
         url += f'#{formid}'
     redirect(url)
