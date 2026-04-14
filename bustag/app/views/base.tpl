@@ -42,9 +42,12 @@
       <li class="nav-item {{ 'active' if path=='/load_db' else ''}}">
         <a class="nav-link" href="/load_db">数据</a>
       </li>
-      <li class="nav-item {{ 'active' if path=='/about' else ''}}">
-        <a class="nav-link" href="/about">关于</a>
+      <li class="nav-item {{ 'active' if path=='/search' else ''}}">
+        <a class="nav-link" href="/search">搜索</a>
       </li>
+      <% # <li class="nav-item {{ 'active' if path=='/about' else ''}}">
+      # <a class="nav-link" href="/about">关于</a>
+      # </li> %>
     </ul>
   </div>
 </nav>

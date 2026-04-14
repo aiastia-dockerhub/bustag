@@ -286,9 +286,21 @@ def img_proxy():
     return img_data
 
 
-@route('/about')
-def about():
-    return template('about', path=request.path)
+@route('/search')
+def search():
+    query = request.query.get('q', '').strip()
+    item = None
+    if query:
+        item = Item.get_by_fanhao(query)
+        if item:
+            Item.loadit(item)
+            Item.get_tags_dict(item)
+    return template('search', query=query, item=item, path=request.path)
+
+
+# @route('/about')
+# def about():
+#     return template('about', path=request.path)
 
 
 app = bottle.default_app()

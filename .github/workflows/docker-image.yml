@@ -24,9 +24,9 @@ jobs:
         with:
           images: aiastia/bustag
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=test,enable={{is_default_branch}}
             type=semver,pattern={{version}}
-            type=sha
       -
         name: Login to DockerHub
         if: github.event_name != 'pull_request'
