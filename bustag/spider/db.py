@@ -126,13 +126,10 @@ class ItemTag(BaseModel):
 
     @staticmethod
     def saveit(item, tag):
-        try:
-            item_tag = ItemTag.create(item=item, tag=tag)
+        item_tag, created = ItemTag.get_or_create(item=item, tag=tag)
+        if created:
             logger.debug(f'save tag_item: {item_tag}')
-        except Exception as ex:
-            logger.exception(ex)
-        else:
-            return item_tag
+        return item_tag
 
     def __repr__(self):
         return f'<ItemTag {self.item.fanhao} - {self.tag.value}>'
