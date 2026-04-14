@@ -90,6 +90,7 @@ def download_movies(pages=None):
             logger.info(f'No more movies on page {page}, stopping')
             break
 
+        page_saved = 0
         for movie in movies:
             movie_id = movie.get('id', '')
             if not movie_id:
@@ -98,9 +99,16 @@ def download_movies(pages=None):
             total_processed += 1
             if fetch_and_save_movie(movie_id):
                 total_saved += 1
+                page_saved += 1
 
             # 请求间隔，避免过快
             time.sleep(0.5)
+
+        # 如果整页都是重复的，说明后面的页更旧，提前停止
+        if page_saved == 0:
+            logger.info(f'Page {page} has no new movies, stopping early')
+            print(f'Page {page} all duplicates, stopping early')
+            break
 
         # 分页间隔
         time.sleep(1)
