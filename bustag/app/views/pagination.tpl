@@ -1,10 +1,11 @@
+% from urllib.parse import quote
 % curr_page = page_info[2]
 % max_page = page_info[1]
 % total_items = page_info[0]
 % setdefault('like', '')
 % setdefault('tag_value', '')
 % like_param = '&like={}'.format(like) if like is not None and like != '' else ''
-% tag_param = '&tag={}'.format(tag_value) if tag_value else ''
+% tag_param = '&tag={}'.format(quote(tag_value)) if tag_value else ''
 <div class="row">
 	<div class="col-12 text-center">
 	<h6>

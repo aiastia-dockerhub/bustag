@@ -27,6 +27,7 @@ def _connect_db():
 
 @hook('after_request')
 def _close_db():
+    response.content_type = response.content_type + '; charset=utf-8' if 'charset' not in response.content_type else response.content_type
     if not dbconn.is_closed():
         dbconn.close()
 
@@ -290,6 +291,12 @@ def img_proxy():
 def search():
     query = request.query.get('q', '').strip()
     tag_value = request.query.get('tag', '').strip()
+    # 修复 UTF-8 被当作 Latin-1 解码的乱码
+    if tag_value:
+        try:
+            tag_value = tag_value.encode('latin-1').decode('utf-8')
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
     page = int(request.query.get('page', 1))
     genre_tags = db.get_genre_tags()
     item = None
