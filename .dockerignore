@@ -6,4 +6,11 @@ __pycache__
 *.pyd
 .Python
 env
-data
+data/bus.db
+data/model/
+*.egg-info
+dist
+build
+tests
+docs
+.gitattributes

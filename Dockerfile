@@ -1,55 +1,39 @@
-FROM python:3.7.4-slim as base
+FROM python:3.11-slim as base
 
-# Create app directory
 WORKDIR /app
 
-# Install app dependencies
-COPY ./docker/sources.list .
-
-RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
-
-RUN apt-get -o Acquire::Check-Valid-Until=false update \
-    && apt-get install \
-    --no-install-recommends --yes \
-    build-essential libpq-dev cron git \
-    python3-dev --yes
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM base as build
 
 COPY requirements.txt .
 
-RUN mkdir /install
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-RUN pip download --destination-directory /install -r /app/requirements.txt -i https://pypi.douban.com/simple
-
-FROM python:3.7.4-slim  as release
-
-COPY ./docker/sources.list .
-
-RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv ./sources.list /etc/apt/
-
-RUN apt-get update && apt-get -y install cron git
+FROM python:3.11-slim as release
 
 WORKDIR /app
 
-COPY --from=build /install /install
+# Copy installed Python packages
+COPY --from=build /install /usr/local
 
-COPY requirements.txt .
+# Copy application code
+COPY bustag/ ./bustag/
+COPY data/ ./data/
+COPY setup.py .
 
-RUN pip install --no-index --find-links=/install -r requirements.txt
+# Create data directory with default config
+RUN mkdir -p /app/data
 
-RUN mkdir /app/docker
-
-COPY docker/entry.sh /app/docker/
-
-RUN touch /var/log/bustag.log
-
-RUN rm -rf /install &&  rm -rf /root/.cache/pip
-
-RUN chmod 755 /app/docker/*.sh
+# Copy docker entry script
+COPY docker/entry.sh /app/docker/entry.sh
+RUN chmod 755 /app/docker/entry.sh
 
 EXPOSE 8000
 
-LABEL maintainer="gxtrobot <gxtrobot@gmail.com>"
+LABEL maintainer="bustag fork - using javbus-api"
 
 CMD ["/app/docker/entry.sh"]
