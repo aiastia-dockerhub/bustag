@@ -1,5 +1,6 @@
 '''
 persist data to db
+支持 SQLite（默认）和 MySQL（通过配置切换）
 '''
 from datetime import date
 import datetime
@@ -12,8 +13,44 @@ from collections import defaultdict
 from bustag.util import logger, get_data_path, format_datetime, get_now_time, get_full_url
 
 DB_FILE = 'bus.db'
-db = SqliteDatabase(get_data_path(DB_FILE), pragmas={
-    'journal_mode': 'wal'})
+
+
+def _create_db():
+    '''根据配置创建数据库连接，支持 sqlite 和 mysql'''
+    try:
+        from bustag.util import APP_CONFIG
+        db_type = APP_CONFIG.get('database.type', 'sqlite').lower().strip()
+    except Exception:
+        db_type = 'sqlite'
+
+    if db_type == 'mysql':
+        try:
+            from playhouse.pool import PooledMySQLDatabase
+            mysql_db = PooledMySQLDatabase(
+                database=APP_CONFIG.get('database.name', 'bustag'),
+                host=APP_CONFIG.get('database.host', 'localhost'),
+                port=int(APP_CONFIG.get('database.port', '3306')),
+                user=APP_CONFIG.get('database.user', 'root'),
+                password=APP_CONFIG.get('database.password', ''),
+                charset='utf8mb4',
+                max_connections=8,
+                stale_timeout=300,
+            )
+            logger.info(f'Using MySQL: {APP_CONFIG.get("database.host")}/{APP_CONFIG.get("database.name")}')
+            return mysql_db
+        except ImportError:
+            logger.warning('pymysql not installed, falling back to SQLite')
+        except Exception as e:
+            logger.warning(f'MySQL connection failed: {e}, falling back to SQLite')
+
+    # 默认使用 SQLite
+    sqlite_db = SqliteDatabase(get_data_path(DB_FILE), pragmas={
+        'journal_mode': 'wal'})
+    logger.info('Using SQLite')
+    return sqlite_db
+
+
+db = _create_db()
 
 
 class BaseModel(Model):
