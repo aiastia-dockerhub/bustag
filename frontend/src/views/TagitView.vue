@@ -42,8 +42,8 @@
         </div>
       </div>
       <div class="col-5 col-md-3 d-flex align-self-center justify-content-center">
-        <button class="btn btn-success mx-1" @click="tag(item.fanhao, 1)">喜欢</button>
-        <button class="btn btn-danger" @click="tag(item.fanhao, 0)">不喜欢</button>
+        <button v-if="like === null || like === 0" class="btn btn-success mx-1" @click="tag(item.fanhao, 1)">喜欢</button>
+        <button v-if="like === null || like === 1" class="btn btn-danger" @click="tag(item.fanhao, 0)">不喜欢</button>
       </div>
     </div>
 
