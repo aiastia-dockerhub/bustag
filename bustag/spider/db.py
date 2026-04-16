@@ -425,6 +425,41 @@ def get_items_by_tag(tag_value, page=1, page_size=10):
     return items_list, page_info
 
 
+def get_items_by_keyword(keyword, page=1, page_size=10):
+    '''
+    按关键词搜索 Item（支持 fanhao/title/tag），支持分页
+    '''
+    items_list = []
+    keyword = (keyword or '').strip()
+    if not keyword:
+        return items_list, (0, 0, 1, page_size)
+
+    # 排序：添加日期(只取日期部分)降序 → 发行日期降序 → ID升序
+    q = (Item.select(Item)
+         .join(ItemTag, JOIN.LEFT_OUTER, on=(ItemTag.item == Item.fanhao))
+         .join(Tag, JOIN.LEFT_OUTER, on=(ItemTag.tag == Tag.id))
+         .where(
+             (Item.fanhao.contains(keyword)) |
+             (Item.title.contains(keyword)) |
+             (Tag.value.contains(keyword))
+         )
+         .distinct()
+         .order_by(fn.date(Item.add_date).desc(), Item.release_date.desc(), Item.id.asc())
+         )
+
+    total_items = q.count()
+    if page is not None:
+        q = q.paginate(page, page_size)
+    items = get_tags_for_items(q)
+    for item in items:
+        Item.loadit(item)
+        items_list.append(item)
+
+    total_pages = (total_items + page_size - 1) // page_size
+    page_info = (total_items, total_pages, page, page_size)
+    return items_list, page_info
+
+
 def get_tags_for_items(items_query):
     item_tag_query = ItemTag.select()
     tag_query = Tag.select()

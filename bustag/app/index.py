@@ -307,15 +307,20 @@ def search():
     page = int(request.query.get('page', 1))
     genre_tags = db.get_genre_tags()
     item = None
+    query_items = []
     tag_items = []
     page_info = None
 
     if query:
-        # 番号搜索
+        # 先做番号精确搜索；未命中时按关键词搜索（番号/标题/标签）
         item = Item.get_by_fanhao(query)
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
+        else:
+            query_items, page_info = db.get_items_by_keyword(query, page=page)
+            for it in query_items:
+                _remove_extra_tags(it)
     elif tag_value:
         # 标签搜索（支持分页）
         tag_items, page_info = db.get_items_by_tag(tag_value, page=page)
@@ -323,7 +328,7 @@ def search():
             _remove_extra_tags(it)
 
     return template('search', query=query, tag_value=tag_value,
-                    item=item, tag_items=tag_items, page_info=page_info,
+                    item=item, query_items=query_items, tag_items=tag_items, page_info=page_info,
                     genre_tags=genre_tags, path=request.path)
 
 
