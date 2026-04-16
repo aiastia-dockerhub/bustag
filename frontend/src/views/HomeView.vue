@@ -112,11 +112,13 @@ export default {
 
     const correct = async (fanhao, isCorrect) => {
       try {
-        await postCorrect(fanhao, { is_correct: isCorrect })
+        const res = await postCorrect(fanhao, { is_correct: isCorrect })
+        console.log('反馈结果:', res.data)
         const page = pageInfo.value?.current_page || 1
         loadData(page)
       } catch (e) {
         console.error('反馈失败:', e)
+        alert('反馈失败: ' + (e.response?.status || e.message))
       }
     }
 
