@@ -341,6 +341,9 @@ def search():
 #     return template('about', path=request.path)
 
 
+# 导入 API 路由（前后端分离用）
+import bustag.app.api
+
 app = bottle.default_app()
 
 
