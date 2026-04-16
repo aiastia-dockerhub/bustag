@@ -88,8 +88,9 @@ def _page_info_to_dict(page_info):
 def _json_response(data):
     """统一 JSON 响应格式"""
     import json
+    json_str = json.dumps(data, ensure_ascii=False)
     response.content_type = 'application/json; charset=utf-8'
-    return json.dumps(data, ensure_ascii=False)
+    return json_str.encode('utf-8')
 
 
 # ============ API 路由 ============
@@ -351,6 +352,12 @@ def api_search():
 
     query = request.query.get('q', '').strip()
     tag_value = request.query.get('tag', '').strip()
+    # 修复 UTF-8 被当作 Latin-1 解码的乱码
+    if tag_value:
+        try:
+            tag_value = tag_value.encode('latin-1').decode('utf-8')
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
     page = int(request.query.get('page', 1))
     genre_tags = db_module.get_genre_tags()
 
