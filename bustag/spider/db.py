@@ -275,7 +275,7 @@ def get_items(rate_type=None, rate_value=None, page=1, page_size=10):
     q = (Item.select(Item, ItemRate)
          .join(ItemRate, JOIN.LEFT_OUTER, attr='item_rate')
          .where(reduce(operator.and_, clauses))
-         .order_by(Item.id.desc())
+         .order_by(Item.release_date.desc(), Item.id.desc())
          )
     total_items = q.count()
     if not page is None:
@@ -371,7 +371,7 @@ def get_items_by_tag(tag_value, page=1, page_size=10):
          .join(ItemTag, on=(ItemTag.item == Item.fanhao))
          .join(Tag, on=(ItemTag.tag == Tag.id))
          .where(Tag.value == tag_value)
-         .order_by(Item.id.desc())
+         .order_by(Item.release_date.desc(), Item.id.desc())
          )
     total_items = q.count()
     if page is not None:
