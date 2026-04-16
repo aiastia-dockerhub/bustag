@@ -119,6 +119,23 @@ def check_model_folder():
         os.mkdir(abs_path)
 
 
+def get_git_commit():
+    '''获取当前 git commit hash（短格式）'''
+    commit_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.git_commit')
+    if os.path.exists(commit_file):
+        with open(commit_file) as f:
+            return f.read().strip()
+    try:
+        import subprocess
+        result = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        return result
+    except Exception:
+        return 'unknown'
+
+
 def init():
     print(f'CWD: {get_cwd()}')
     check_testing()

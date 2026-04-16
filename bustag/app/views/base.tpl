@@ -75,20 +75,8 @@
 
 {{!base}}
 <% from bustag import __version__ %>
-<%
-import os
-git_commit = 'unknown'
-commit_file = '/app/.git_commit'
-if os.path.exists(commit_file):
-    with open(commit_file) as f:
-        git_commit = f.read().strip()
-if git_commit == 'unknown':
-    import subprocess
-    try:
-        git_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
-    except Exception:
-        pass
-%>
+<% from bustag.util import get_git_commit %>
+<% git_commit = get_git_commit() %>
 <footer class="my-3">
   <div class="container">
   <div class="col">
