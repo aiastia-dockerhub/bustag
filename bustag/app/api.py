@@ -5,11 +5,29 @@ import os
 import sys
 import hashlib
 import threading
+import time
 import traceback
 import bottle
 import requests as req_lib
 from bottle import route, run, template, static_file, request, response, redirect, hook
 from bustag.util import APP_CONFIG
+
+# ============ 简易内存缓存 ============
+_api_cache = {}
+_api_cache_lock = threading.Lock()
+
+def _cache_get(key, max_age=30):
+    """获取缓存，max_age 秒内有效"""
+    with _api_cache_lock:
+        entry = _api_cache.get(key)
+        if entry and time.time() - entry['time'] < max_age:
+            return entry['data']
+    return None
+
+def _cache_set(key, data):
+    """设置缓存"""
+    with _api_cache_lock:
+        _api_cache[key] = {'data': data, 'time': time.time()}
 
 # 增大 POST 请求体限制
 bottle.BaseRequest.MEMFILE_MAX = 10 * 1024 * 1024  # 10MB
@@ -79,16 +97,25 @@ def _json_response(data):
 @route('/api/index')
 def api_index():
     """推荐列表"""
+    rate_value = int(request.query.get('like', 1))
+    page = int(request.query.get('page', 1))
+    movie_type = request.query.get('type', 'normal')
+
+    # 绕过缓存（打标后刷新）
+    bust = request.query.get('_t', None)
+    cache_key = f'index:{rate_value}:{page}:{movie_type}'
+
+    if not bust:
+        cached = _cache_get(cache_key, max_age=30)
+        if cached:
+            return _json_response(cached)
+
     from bustag.spider.db import get_items, RATE_TYPE, RATE_VALUE
     from bustag.spider import db as db_module
 
     rate_type = RATE_TYPE.SYSTEM_RATE.value
-    rate_value = int(request.query.get('like', RATE_VALUE.LIKE.value))
-    page = int(request.query.get('page', 1))
-
     movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
     movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
-    movie_type = request.query.get('type', movie_types[0] if movie_types else 'normal')
     if movie_type not in movie_types:
         movie_type = movie_types[0] if movie_types else 'normal'
 
@@ -100,7 +127,7 @@ def api_index():
     today_update_count = db_module.get_today_update_count()
     today_recommend_count = db_module.get_today_recommend_count()
 
-    return _json_response({
+    result = {
         'items': [_item_rate_to_dict(item) for item in items],
         'page_info': _page_info_to_dict(page_info),
         'like': rate_value,
@@ -108,7 +135,9 @@ def api_index():
         'movie_type': movie_type,
         'today_update': today_update_count,
         'today_recommend': today_recommend_count,
-    })
+    }
+    _cache_set(cache_key, result)
+    return _json_response(result)
 
 
 @route('/api/correct/<fanhao>', method='POST')
@@ -128,26 +157,33 @@ def api_correct(fanhao):
             item_rate.rate_value = rate_value
         item_rate.save()
 
+    # 清除相关缓存
+    _api_cache.clear()
     return _json_response({'success': True})
 
 
 @route('/api/tagit')
 def api_tagit():
     """打标列表"""
-    from bustag.spider.db import get_items, RATE_TYPE, RATE_VALUE
-
     rate_value = request.query.get('like', None)
     rate_value = None if rate_value == 'None' or rate_value == '' else rate_value
+    page = int(request.query.get('page', 1))
+    movie_type = request.query.get('type', 'normal')
+
+    cache_key = f'tagit:{rate_value}:{page}:{movie_type}'
+    cached = _cache_get(cache_key, max_age=30)
+    if cached:
+        return _json_response(cached)
+
+    from bustag.spider.db import get_items, RATE_TYPE, RATE_VALUE
+
     rate_type = None
     if rate_value is not None:
         rate_value = int(rate_value)
         rate_type = RATE_TYPE.USER_RATE
-    page = int(request.query.get('page', 1))
 
-    # 影片类型筛选（参考推荐页）
     movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
     movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
-    movie_type = request.query.get('type', movie_types[0] if movie_types else 'normal')
     if movie_type not in movie_types:
         movie_type = movie_types[0] if movie_types else 'normal'
 
@@ -156,13 +192,15 @@ def api_tagit():
     for item in items:
         _remove_extra_tags(item)
 
-    return _json_response({
+    result = {
         'items': [_item_rate_to_dict(item) for item in items],
         'page_info': _page_info_to_dict(page_info),
         'like': rate_value,
         'movie_types': movie_types,
         'movie_type': movie_type,
-    })
+    }
+    _cache_set(cache_key, result)
+    return _json_response(result)
 
 
 @route('/api/tag/<fanhao>', method='POST')
@@ -181,6 +219,8 @@ def api_tag(fanhao):
         item_rate.rate_value = rate_value
         item_rate.save()
 
+    # 清除相关缓存
+    _api_cache.clear()
     return _json_response({'success': True})
 
 
