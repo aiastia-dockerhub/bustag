@@ -50,8 +50,8 @@
         </div>
       </div>
       <div class="col-5 col-md-3 d-flex align-self-center justify-content-center">
-        <button class="btn btn-primary btn-sm mx-1" @click="correct(item.fanhao, true, $event)">正确</button>
-        <button class="btn btn-danger btn-sm" @click="correct(item.fanhao, false, $event)">错误</button>
+        <button class="btn btn-primary mx-1" @click="correct(item.fanhao, true, $event)">正确</button>
+        <button class="btn btn-danger" @click="correct(item.fanhao, false, $event)">错误</button>
       </div>
     </div>
 

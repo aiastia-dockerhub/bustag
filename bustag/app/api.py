@@ -124,8 +124,8 @@ def api_index():
     for item in items:
         _remove_extra_tags(item)
 
-    today_update_count = db_module.get_today_update_count()
-    today_recommend_count = db_module.get_today_recommend_count()
+    today_update_count = db_module.get_today_update_count() if page == 1 else 0
+    today_recommend_count = db_module.get_today_recommend_count() if page == 1 else 0
 
     result = {
         'items': [_item_rate_to_dict(item) for item in items],
