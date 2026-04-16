@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="container">
     <!-- 番号搜索 -->
     <div class="row py-3">
@@ -116,17 +116,28 @@ export default {
 
     const showImg = (url) => showImage(imgProxyUrl(url))
 
-    const loadPage = async (page = 1) => {
+    // 加载标签列表（不触发搜索）
+    const loadGenreTags = async () => {
+      if (genreTags.value.length > 0) return
+      try {
+        const res = await getSearch({ page: 1 })
+        genreTags.value = res.data.genre_tags || []
+      } catch (e) {
+        console.error('加载标签失败:', e)
+      }
+    }
+
+    const doSearch = async () => {
+      if (!query.value.trim()) return
+      currentTag.value = ''
+      tagItems.value = []
+      tagPageInfo.value = null
+      searched.value = true
       loading.value = true
       try {
-        const params = { page }
-        if (query.value) params.q = query.value
-        if (currentTag.value) params.tag = currentTag.value
-        const res = await getSearch(params)
+        const res = await getSearch({ q: query.value, page: 1 })
         item.value = res.data.item
-        tagItems.value = res.data.tag_items || []
-        tagPageInfo.value = res.data.page_info
-        genreTags.value = res.data.genre_tags || []
+        genreTags.value = res.data.genre_tags || genreTags.value
       } catch (e) {
         console.error('搜索失败:', e)
       } finally {
@@ -134,25 +145,39 @@ export default {
       }
     }
 
-    const doSearch = () => {
-      currentTag.value = ''
-      tagItems.value = []
-      tagPageInfo.value = null
-      searched.value = true
-      loadPage(1)
-    }
-
-    const doTagSearch = () => {
+    const doTagSearch = async () => {
+      if (!currentTag.value) return
       query.value = ''
       item.value = null
       searched.value = false
-      loadPage(1)
+      loading.value = true
+      try {
+        const res = await getSearch({ tag: currentTag.value, page: 1 })
+        tagItems.value = res.data.tag_items || []
+        tagPageInfo.value = res.data.page_info
+        genreTags.value = res.data.genre_tags || genreTags.value
+      } catch (e) {
+        console.error('搜索失败:', e)
+      } finally {
+        loading.value = false
+      }
     }
 
-    const goTagPage = (page) => loadPage(page)
+    const goTagPage = async (page) => {
+      loading.value = true
+      try {
+        const res = await getSearch({ tag: currentTag.value, page })
+        tagItems.value = res.data.tag_items || []
+        tagPageInfo.value = res.data.page_info
+      } catch (e) {
+        console.error('搜索失败:', e)
+      } finally {
+        loading.value = false
+      }
+    }
 
-    // 只加载标签列表，不触发搜索
-    onMounted(() => loadPage())
+    // 页面挂载只加载标签列表
+    onMounted(() => loadGenreTags())
 
     return { query, item, tagItems, tagPageInfo, genreTags, currentTag, loading, searched, imgProxyUrl, showImg, doSearch, doTagSearch, goTagPage }
   }
