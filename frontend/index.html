@@ -5,9 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <link rel="icon" href="/favicon.ico" />
     <title>Bustag</title>
+    <style>
+      /* 骨架屏 - JS加载前立即显示，消除白屏 */
+      .skeleton-nav { background: #f8f9fa; padding: 8px 16px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; }
+      .skeleton-logo { width: 120px; height: 40px; background: #e9ecef; border-radius: 4px; }
+      .skeleton-body { max-width: 1140px; margin: 0 auto; padding: 16px; }
+      .skeleton-alert { height: 38px; background: #e9ecef; border-radius: 4px; margin-bottom: 16px; }
+      .skeleton-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+      .skeleton-tab { height: 38px; width: 80px; background: #e9ecef; border-radius: 4px; }
+      .skeleton-card { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid #dee2e6; }
+      .skeleton-img { width: 200px; height: 150px; background: #e9ecef; border-radius: 4px; flex-shrink: 0; }
+      .skeleton-text { flex: 1; }
+      .skeleton-line { height: 16px; background: #e9ecef; border-radius: 4px; margin-bottom: 8px; }
+      .skeleton-line:nth-child(1) { width: 30%; }
+      .skeleton-line:nth-child(2) { width: 50%; }
+      .skeleton-line:nth-child(3) { width: 70%; }
+      .skeleton-line:nth-child(4) { width: 40%; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+      .skeleton-img, .skeleton-line, .skeleton-alert, .skeleton-tab, .skeleton-logo { animation: pulse 1.5s infinite; }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- 骨架屏：Vue挂载前显示，挂载后自动替换 -->
+      <div id="skeleton">
+        <div class="skeleton-nav"><div class="skeleton-logo"></div></div>
+        <div class="skeleton-body">
+          <div class="skeleton-alert"></div>
+          <div class="skeleton-tabs">
+            <div class="skeleton-tab"></div>
+            <div class="skeleton-tab"></div>
+          </div>
+          <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-text">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+            </div>
+          </div>
+          <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-text">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

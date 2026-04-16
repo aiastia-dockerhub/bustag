@@ -45,4 +45,23 @@ if [ -n "$JAVBUS_IMG_URL" ]; then
 fi
 
 echo "Starting supervisord..."
-exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+/usr/bin/supervisord -c /etc/supervisor/supervisord.conf &
+
+# 等待服务启动
+echo "Warming up services..."
+sleep 3
+
+# 预热：触发 API 加载，让图片缓存开始填充
+for i in 1 2 3; do
+  if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/index 2>/dev/null | grep -q "200"; then
+    echo "Backend is ready, preloading data..."
+    curl -s http://127.0.0.1:8000/api/index > /dev/null 2>&1 &
+    curl -s http://127.0.0.1:8000/api/tagit > /dev/null 2>&1 &
+    break
+  fi
+  echo "Waiting for backend... (attempt $i)"
+  sleep 2
+done
+
+# 保持容器运行
+wait
