@@ -51,3 +51,19 @@ output/
 
 # notebooks
 notebooks/
+
+# data - runtime files
+data/img_cache/
+data/bus.db
+data/bus.db-shm
+data/bus.db-wal
+data/model/
+data/uploaded.db
+*.db-shm
+*.db-wal
+app/bus.db
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/package-lock.json
