@@ -44,16 +44,28 @@ def train():
             f'训练数据只有一个类别({unique_classes}), 无法训练模型. '
             f'请确保既有"喜欢"也有"不喜欢"的打标数据')
 
-    # 梯度提升分类器（固定参数，训练快）
-    logger.info('开始训练 GradientBoosting 模型...')
-    model = GradientBoostingClassifier(
-        n_estimators=100,
-        max_depth=3,
-        learning_rate=0.1,
-        min_samples_split=2,
-        random_state=42,
+    # GridSearchCV 自动搜索最优参数
+    logger.info('开始 GridSearchCV 参数搜索（54种组合×3折）...')
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [3, 5, 7],
+        'learning_rate': [0.05, 0.1, 0.2],
+        'min_samples_split': [2, 5],
+    }
+
+    gbc = GradientBoostingClassifier(random_state=42)
+    grid_search = GridSearchCV(
+        gbc, param_grid,
+        cv=3,
+        scoring='f1',
+        n_jobs=-1,
+        verbose=1,
     )
-    model.fit(X_train, y_train)
+    grid_search.fit(X_train, y_train)
+
+    model = grid_search.best_estimator_
+    logger.info(f'最优参数: {grid_search.best_params_}')
+    logger.info(f'最优交叉验证 F1: {grid_search.best_score_:.4f}')
 
     y_pred = model.predict(X_test)
     confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])

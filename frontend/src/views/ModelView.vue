@@ -4,7 +4,9 @@
       <div class="col-12">
         <h4>模型信息</h4>
         <div v-if="error" class="alert alert-danger">{{ error }}</div>
-        <div v-if="training" class="alert alert-info">正在训练中...</div>
+        <div v-if="training" class="alert alert-info">
+          正在训练中，GridSearchCV 搜索 54 种参数组合，预计需要 1-5 分钟，请耐心等待...
+        </div>
 
         <div v-if="scores" class="mb-3">
           <table class="table table-bordered">
