@@ -9,6 +9,14 @@ import requests as req_lib
 from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
 from bustag.util import APP_CONFIG
+import bustag.model.classifier as clf
+from bustag.util import logger, get_cwd, get_now_time, get_data_path
+from bustag.spider.db import (get_items, get_local_items, RATE_TYPE, RATE_VALUE, ItemRate,
+                              Item, LocalItem, DBError, db as dbconn)
+from bustag.spider import db
+from bustag.app.schedule import start_scheduler, add_download_job
+from bustag.spider import bus_spider
+from bustag.app.local import add_local_fanhao, load_tags_db
 
 # 增大 POST 请求体限制（默认 100KB，番号多时容易超限）
 bottle.BaseRequest.MEMFILE_MAX = 10 * 1024 * 1024  # 10MB
@@ -359,14 +367,6 @@ if __name__ == "__main__":
         freeze_support()
         from bustag import __version__
         print(f"Bustag server starting: version: {__version__}\n\n")
-        import bustag.model.classifier as clf
-        from bustag.util import logger, get_cwd, get_now_time, get_data_path
-        from bustag.spider.db import (get_items, get_local_items, RATE_TYPE, RATE_VALUE, ItemRate,
-                                      Item, LocalItem, DBError, db as dbconn)
-        from bustag.spider import db
-        from bustag.app.schedule import start_scheduler, add_download_job
-        from bustag.spider import bus_spider
-        from bustag.app.local import add_local_fanhao, load_tags_db
         start_app()
     except Exception as e:
         print('system error')
