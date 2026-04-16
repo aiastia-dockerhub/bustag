@@ -52,7 +52,7 @@
     </div>
 
     <!-- 番号搜索无结果 -->
-    <div v-if="!item && query && !currentTag" class="row py-3">
+    <div v-if="searched && !item && query && !currentTag" class="row py-3">
       <div class="col-12 text-center">
         <div class="alert alert-warning">未找到番号「{{ query }}」的相关信息</div>
       </div>
@@ -111,6 +111,7 @@ export default {
     const genreTags = ref([])
     const currentTag = ref('')
     const loading = ref(false)
+    const searched = ref(false)
     const showImage = inject('showImage')
 
     const showImg = (url) => showImage(imgProxyUrl(url))
@@ -137,20 +138,23 @@ export default {
       currentTag.value = ''
       tagItems.value = []
       tagPageInfo.value = null
+      searched.value = true
       loadPage(1)
     }
 
     const doTagSearch = () => {
       query.value = ''
       item.value = null
+      searched.value = false
       loadPage(1)
     }
 
     const goTagPage = (page) => loadPage(page)
 
+    // 只加载标签列表，不触发搜索
     onMounted(() => loadPage())
 
-    return { query, item, tagItems, tagPageInfo, genreTags, currentTag, loading, imgProxyUrl, showImg, doSearch, doTagSearch, goTagPage }
+    return { query, item, tagItems, tagPageInfo, genreTags, currentTag, loading, searched, imgProxyUrl, showImg, doSearch, doTagSearch, goTagPage }
   }
 }
 </script>

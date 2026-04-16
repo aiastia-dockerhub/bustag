@@ -84,23 +84,15 @@
 </template>
 
 <script>
-import { ref, onMounted, provide } from 'vue'
-import { getVersion } from './assets/api.js'
+import { ref, provide } from 'vue'
+
+// 版本号由 vite 构建时注入 git commit hash
+const version = __APP_VERSION__
 
 export default {
   setup() {
-    const version = ref('')
     const globalMsg = ref('')
     const modalImageUrl = ref('')
-
-    onMounted(async () => {
-      try {
-        const res = await getVersion()
-        version.value = res.data.version
-      } catch (e) {
-        version.value = 'unknown'
-      }
-    })
 
     // 提供图片放大方法给子组件
     const showImage = (url) => {
