@@ -87,8 +87,9 @@ def _page_info_to_dict(page_info):
 
 def _json_response(data):
     """统一 JSON 响应格式"""
+    import json
     response.content_type = 'application/json; charset=utf-8'
-    return data
+    return json.dumps(data, ensure_ascii=False)
 
 
 # ============ API 路由 ============
