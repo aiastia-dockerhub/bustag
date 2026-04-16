@@ -52,7 +52,19 @@ output/
 # notebooks
 notebooks/
 
+# data - runtime files
+data/img_cache/
+data/bus.db-shm
+data/bus.db-wal
+*.db-shm
+*.db-wal
+data/model/
+
+# uploaded
+data/uploaded.db
+
 # frontend
 frontend/node_modules/
 frontend/dist/
 frontend/package-lock.json
+data/bus.db

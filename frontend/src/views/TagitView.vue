@@ -1,16 +1,20 @@
 <template>
   <div class="container">
+    <!-- 影片类型 + 喜欢筛选 Tab -->
     <div class="row py-3">
       <div class="col-12">
-        <ul class="nav nav-tabs">
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === null }" href="#" @click.prevent="switchLike(null)">全部</a>
+        <ul class="nav nav-tabs flex-nowrap overflow-auto">
+          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-all'">
+            <a class="nav-link" :class="{ active: movieType === mt && like === null }"
+               href="#" @click.prevent="switchTab(mt, null)">{{ mt === 'normal' ? '有码' : '无码' }}全部</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === 1 }" href="#" @click.prevent="switchLike(1)">喜欢</a>
+          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-like'">
+            <a class="nav-link" :class="{ active: movieType === mt && like === 1 }"
+               href="#" @click.prevent="switchTab(mt, 1)">{{ mt === 'normal' ? '有码' : '无码' }}喜欢</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === 0 }" href="#" @click.prevent="switchLike(0)">不喜欢</a>
+          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-dislike'">
+            <a class="nav-link" :class="{ active: movieType === mt && like === 0 }"
+               href="#" @click.prevent="switchTab(mt, 0)">{{ mt === 'normal' ? '有码' : '无码' }}不喜欢</a>
           </li>
         </ul>
       </div>
@@ -22,7 +26,6 @@
              @click="showImg(item.cover_img_url)" alt="cover" loading="lazy" />
       </div>
       <div class="col-7 col-md-5">
-        <div class="small text-muted">id: {{ item.id }}</div>
         <div class="small text-muted">发行日期: {{ item.release_date }}</div>
         <h6>{{ item.fanhao }}</h6>
         <a :href="item.url" target="_blank">{{ (item.title || '').substring(0, 30) }}</a>
@@ -54,23 +57,28 @@ export default {
     const items = ref([])
     const pageInfo = ref(null)
     const like = ref(null)
+    const movieTypes = ref(['normal'])
+    const movieType = ref('normal')
     const showImage = inject('showImage')
 
     const showImg = (url) => showImage(imgProxyUrl(url))
 
     const loadData = async (page = 1) => {
       try {
-        const params = { page }
+        const params = { page, type: movieType.value }
         if (like.value !== null) params.like = like.value
         const res = await getTagit(params)
         items.value = res.data.items
         pageInfo.value = res.data.page_info
+        movieTypes.value = res.data.movie_types
+        movieType.value = res.data.movie_type
       } catch (e) {
         console.error('加载打标失败:', e)
       }
     }
 
-    const switchLike = (lk) => {
+    const switchTab = (mt, lk) => {
+      movieType.value = mt
       like.value = lk
       loadData(1)
     }
@@ -88,7 +96,7 @@ export default {
 
     onMounted(() => loadData())
 
-    return { items, pageInfo, like, imgProxyUrl, showImg, switchLike, goPage, tag }
+    return { items, pageInfo, like, movieTypes, movieType, imgProxyUrl, showImg, switchTab, goPage, tag }
   }
 }
 </script>

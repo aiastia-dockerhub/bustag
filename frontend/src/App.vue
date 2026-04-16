@@ -71,6 +71,7 @@
           <p class="mb-0">
             Developed by 凤凰山@2019
             <a href="https://github.com/gxtrobot/bustag" target="_blank">github</a>
+            | 2026 by Vue
           </p>
         </div>
       </div>

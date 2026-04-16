@@ -144,8 +144,15 @@ def api_tagit():
         rate_type = RATE_TYPE.USER_RATE
     page = int(request.query.get('page', 1))
 
+    # 影片类型筛选（参考推荐页）
+    movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
+    movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
+    movie_type = request.query.get('type', movie_types[0] if movie_types else 'normal')
+    if movie_type not in movie_types:
+        movie_type = movie_types[0] if movie_types else 'normal'
+
     items, page_info = get_items(
-        rate_type=rate_type, rate_value=rate_value, page=page)
+        rate_type=rate_type, rate_value=rate_value, page=page, movie_type=movie_type)
     for item in items:
         _remove_extra_tags(item)
 
@@ -153,6 +160,8 @@ def api_tagit():
         'items': [_item_rate_to_dict(item) for item in items],
         'page_info': _page_info_to_dict(page_info),
         'like': rate_value,
+        'movie_types': movie_types,
+        'movie_type': movie_type,
     })
 
 
