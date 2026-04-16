@@ -104,6 +104,12 @@ def tag(fanhao):
 
 @route('/correct/<fanhao>', method='POST')
 def correct(fanhao):
+    '''
+    推荐结果反馈：用户纠正AI预测结果
+    - 点击"正确"(value=1)：认同AI预测，保留当前评分，转为用户打标(USER_RATE)
+    - 点击"错误"(value=0)：纠正AI预测，翻转评分(喜欢→不喜欢，不喜欢→喜欢)，转为用户打标(USER_RATE)
+    - 用户打标数据用于后续重新训练AI模型，提升推荐准确度
+    '''
     if request.POST.submit:
         formid = request.POST.formid
         is_correct = int(request.POST.submit)
@@ -111,6 +117,7 @@ def correct(fanhao):
         if item_rate:
             item_rate.rate_type = RATE_TYPE.USER_RATE
             if not is_correct:
+                # 翻转评分：喜欢(1)→不喜欢(0)，不喜欢(0)→喜欢(1)
                 rate_value = item_rate.rate_value
                 rate_value = 1 if rate_value == 0 else 0
                 item_rate.rate_value = rate_value

@@ -4,6 +4,7 @@
 <div class="container">
  <div class="row py-3">
 	<div class="col-12">
+		<!-- 喜欢/不喜欢：AI模型预测的结果分类，喜欢=预测你会喜欢，不喜欢=预测你不会喜欢 -->
 		<ul class="nav nav-tabs">
 		<li class="nav-item">
 			<a class="nav-link {{'active' if like==1 else ''}}" href="?like=1">喜欢</a>
@@ -45,6 +46,8 @@
 			</div>
 		<div class="col-5 col-md-3  align-self-center">
 		<input type=hidden name="formid" value="form-{{i}}">
+		<!-- 正确：认同AI预测，保留当前评分，转为用户打标(USER_RATE) -->
+		<!-- 错误：纠正AI预测，翻转评分(喜欢→不喜欢，不喜欢→喜欢)，转为用户打标(USER_RATE) -->
 		<button type="submit" name="submit" class="btn btn-primary mx-2" value="1">正确</button>
 		<button type="submit" name="submit" class="btn btn-danger" value="0">错误</button>
 		</div>
