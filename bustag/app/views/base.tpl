@@ -75,14 +75,11 @@
 
 {{!base}}
 <% from bustag import __version__ %>
-<% from bustag.util import get_git_commit %>
-<% git_commit = get_git_commit() %>
 <footer class="my-3">
   <div class="container">
   <div class="col">
     <p class="text-center">
     <span class="badge badge-pill badge-info">version : {{__version__}}</span>
-    <span class="badge badge-pill badge-secondary">commit : {{git_commit}}</span>
   </p>
   <p class="text-center">
   Developed by 凤凰山@2019 <a href="https://github.com/gxtrobot/bustag" target="_blank">github</a>
