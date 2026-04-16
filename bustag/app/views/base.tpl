@@ -78,12 +78,11 @@
 <%
 import os
 git_commit = 'unknown'
-# 优先从 Docker 构建时写入的文件读取
 commit_file = '/app/.git_commit'
 if os.path.exists(commit_file):
     with open(commit_file) as f:
         git_commit = f.read().strip()
-else:
+if git_commit == 'unknown':
     import subprocess
     try:
         git_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
