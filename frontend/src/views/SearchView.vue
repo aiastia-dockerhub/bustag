@@ -19,9 +19,9 @@
       <div class="col-12 text-center">
         <form @submit.prevent="doTagSearch" class="form-inline justify-content-center">
           <div class="input-group" style="max-width: 400px;">
-            <select class="form-control" v-model="currentTag">
+            <select class="form-control" v-model="currentTagId">
               <option value="">-- 选择标签类型 --</option>
-              <option v-for="tag in genreTags" :key="tag" :value="tag">{{ tag }}</option>
+              <option v-for="tag in genreTags" :key="tag.id" :value="tag.id">{{ tag.value }}</option>
             </select>
             <div class="input-group-append">
               <button class="btn btn-secondary" type="submit">按标签搜索</button>
@@ -109,6 +109,7 @@ export default {
     const tagItems = ref([])
     const tagPageInfo = ref(null)
     const genreTags = ref([])
+    const currentTagId = ref('')
     const currentTag = ref('')
     const loading = ref(false)
     const searched = ref(false)
@@ -129,6 +130,7 @@ export default {
 
     const doSearch = async () => {
       if (!query.value.trim()) return
+      currentTagId.value = ''
       currentTag.value = ''
       tagItems.value = []
       tagPageInfo.value = null
@@ -146,15 +148,16 @@ export default {
     }
 
     const doTagSearch = async () => {
-      if (!currentTag.value) return
+      if (!currentTagId.value) return
       query.value = ''
       item.value = null
       searched.value = false
       loading.value = true
       try {
-        const res = await getSearch({ tag: currentTag.value, page: 1 })
+        const res = await getSearch({ tag_id: currentTagId.value, page: 1 })
         tagItems.value = res.data.tag_items || []
         tagPageInfo.value = res.data.page_info
+        currentTag.value = res.data.tag_value || ''
         genreTags.value = res.data.genre_tags || genreTags.value
       } catch (e) {
         console.error('搜索失败:', e)
@@ -166,7 +169,7 @@ export default {
     const goTagPage = async (page) => {
       loading.value = true
       try {
-        const res = await getSearch({ tag: currentTag.value, page })
+        const res = await getSearch({ tag_id: currentTagId.value, page })
         tagItems.value = res.data.tag_items || []
         tagPageInfo.value = res.data.page_info
       } catch (e) {
@@ -179,7 +182,7 @@ export default {
     // 页面挂载只加载标签列表
     onMounted(() => loadGenreTags())
 
-    return { query, item, tagItems, tagPageInfo, genreTags, currentTag, loading, searched, imgProxyUrl, showImg, doSearch, doTagSearch, goTagPage }
+    return { query, item, tagItems, tagPageInfo, genreTags, currentTagId, currentTag, loading, searched, imgProxyUrl, showImg, doSearch, doTagSearch, goTagPage }
   }
 }
 </script>

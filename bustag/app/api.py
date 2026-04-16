@@ -351,33 +351,34 @@ def api_search():
     from bustag.spider import db as db_module
 
     query = request.query.get('q', '').strip()
-    tag_value = request.query.get('tag', '').strip()
-    # 修复 UTF-8 被当作 Latin-1 解码的乱码
-    if tag_value:
-        try:
-            tag_value = tag_value.encode('latin-1').decode('utf-8')
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            pass
+    tag_id = request.query.get('tag_id', '').strip()
     page = int(request.query.get('page', 1))
     genre_tags = db_module.get_genre_tags()
 
     item = None
     tag_items = []
     page_info = None
+    tag_value = ''
 
     if query:
         item = Item.get_by_fanhao(query)
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
-    elif tag_value:
-        tag_items, page_info = db_module.get_items_by_tag(tag_value, page=page)
+    elif tag_id:
+        tag_items, page_info = db_module.get_items_by_tag_id(int(tag_id), page=page)
+        # 找到对应的 tag 名字用于显示
+        for t in genre_tags:
+            if str(t['id']) == tag_id:
+                tag_value = t['value']
+                break
         for it in tag_items:
             _remove_extra_tags(it)
 
     result = {
         'query': query,
         'tag_value': tag_value,
+        'tag_id': tag_id,
         'genre_tags': genre_tags,
         'item': _item_to_dict(item) if item else None,
         'tag_items': [_item_to_dict(it) for it in tag_items],
