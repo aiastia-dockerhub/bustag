@@ -47,9 +47,9 @@ def train():
     # GridSearchCV 自动搜索最优参数
     logger.info('开始 GridSearchCV 参数搜索...')
     param_grid = {
-        'n_estimators': [50, 100, 200],
-        'max_depth': [3, 5, 7],
-        'learning_rate': [0.05, 0.1, 0.2],
+        'n_estimators': [100, 200],
+        'max_depth': [3, 5],
+        'learning_rate': [0.1],
         'min_samples_split': [2, 5],
     }
 
