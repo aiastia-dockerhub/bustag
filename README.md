@@ -16,18 +16,6 @@
 本软件仅用于技术学习使用，禁止用于商业用途，使用本软件所造成的的后果由使用者承担！
 如果你觉得这个软件不错, 可以请我喝杯冰阔落 ^_^.**
 
-<p align="center">
-<img src="./bustag/app/static/images/alipay.jpg" width="200">
-<img src="./bustag/app/static/images/wechat_pay.jpg" width="200">
-</p>
-
-# 紧急提示
-
-
-# windows, mac 绿色版下载地址
-  链接: https://pan.baidu.com/s/1pqarq7fOXjsbad0WN4Uaaw 提取码: budu
-
-  压缩包密码: gxtrobot
 
 # docker 版本同步更新
 运行 ```docker pull gxtrobot/bustag-app:latest``` 后重新启动项目即可
@@ -36,8 +24,6 @@
 只需在data目录下创建[config.ini](https://raw.githubusercontent.com/gxtrobot/bustag/master/data/config.ini), 然后启动系统, 访问localhost:8000
 
 ### 使用视频 
-
-链接: https://pan.baidu.com/s/1pqarq7fOXjsbad0WN4Uaaw 提取码: budu
 
 在视频目录下
 
