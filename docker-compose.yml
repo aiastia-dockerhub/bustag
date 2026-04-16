@@ -13,11 +13,11 @@ services:
       # - JAVBUS_API_TOKEN=your_token_here
 
   bustag:
-    image: aiastia/bustag:test
+    image: aiastia/bustag:vue
     container_name: bustag
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8080:80"
     environment:
       - TZ=Asia/Shanghai
       - JAVBUS_API_URL=http://javbus-api:3000
