@@ -42,8 +42,8 @@ COPY bustag/ ./bustag/
 COPY data/ ./data/
 COPY setup.py .
 
-# Create data directory
-RUN mkdir -p /app/data
+# Create data directory and nginx cache directory
+RUN mkdir -p /app/data /tmp/nginx_img_cache
 
 # Copy Vue frontend build output
 COPY --from=frontend-build /app/frontend/dist /usr/share/nginx/html

@@ -340,7 +340,7 @@ def api_search():
 
 
 # 图片代理（复用原有的逻辑）
-_img_semaphore = threading.Semaphore(3)
+_img_semaphore = threading.Semaphore(10)
 
 
 def _get_img_cache_dir():
