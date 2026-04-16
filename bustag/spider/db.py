@@ -53,12 +53,6 @@ def _create_db():
 db = _create_db()
 
 
-def _get_add_date():
-    '''获取截断到小时的当前时间，确保同一小时内的项目按ID排序'''
-    now = datetime.datetime.now()
-    return now.replace(minute=0, second=0, microsecond=0)
-
-
 class BaseModel(Model):
 
     class Meta:
@@ -82,7 +76,7 @@ class Item(BaseModel):
     fanhao = CharField(unique=True)
     url = CharField(unique=True)
     release_date = DateField()
-    add_date = DateTimeField(default=_get_add_date)
+    add_date = DateTimeField(default=datetime.datetime.now)
     meta_info = TextField()
     # 影片类型：normal=有码, uncensored=无码
     movie_type = CharField(default='normal')
@@ -230,7 +224,7 @@ class LocalItem(BaseModel):
                            backref='local_item', unique=True)
     path = CharField(null=True)
     size = IntegerField(null=True)
-    add_date = DateTimeField(default=_get_add_date)
+    add_date = DateTimeField(default=datetime.datetime.now)
     last_view_date = DateTimeField(null=True)
     view_times = IntegerField(default=0)
 
