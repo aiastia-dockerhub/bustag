@@ -298,6 +298,12 @@ def img_proxy():
 def search():
     query = request.query.get('q', '').strip()
     tag_value = request.query.get('tag', '').strip()
+    # 修复 UTF-8 被当作 Latin-1 解码的乱码（关键词）
+    if query:
+        try:
+            query = query.encode('latin-1').decode('utf-8')
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
     # 修复 UTF-8 被当作 Latin-1 解码的乱码
     if tag_value:
         try:
