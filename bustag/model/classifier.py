@@ -55,17 +55,17 @@ def train():
 
 def evaluate(confusion_mtx, y_test, y_pred):
     tn, fp, fn, tp = confusion_mtx.ravel()
-    # accuracy = accuracy_score(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     logger.info(f'tp: {tp}, fp: {fp}')
     logger.info(f'fn: {fn}, tn: {tn}')
-    # logger.info(f'accuracy_score: {accuracy}')
+    logger.info(f'accuracy_score: {accuracy}')
     logger.info(f'precision_score: {precision}')
     logger.info(f'recall_score: {recall}')
     logger.info(f'f1_score: {f1}')
-    model_scores = dict(precision=precision, recall=recall, f1=f1)
+    model_scores = dict(accuracy=accuracy, precision=precision, recall=recall, f1=f1)
     model_scores = {key: float('{:.2f}'.format(value))
                     for key, value in model_scores.items()}
     return model_scores
