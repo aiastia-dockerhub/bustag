@@ -12,23 +12,26 @@
     <!-- Tab 切换 -->
     <div class="row py-3">
       <div class="col-12">
-        <ul class="nav nav-tabs flex-nowrap overflow-auto">
-          <template v-for="mt in movieTypes" :key="mt">
-            <li class="nav-item">
-              <a class="nav-link" :class="{ active: movieType === mt && like === 1 }"
-                 href="#" @click.prevent="switchTab(mt, 1)">{{ mt === 'normal' ? '有码' : '无码' }}喜欢</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" :class="{ active: movieType === mt && like === 0 }"
-                 href="#" @click.prevent="switchTab(mt, 0)">{{ mt === 'normal' ? '有码' : '无码' }}不喜欢</a>
-            </li>
-          </template>
+        <ul class="nav nav-tabs">
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 1 }"
+               href="#" @click.prevent="switchLike(1)">喜欢</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 0 }"
+               href="#" @click.prevent="switchLike(0)">不喜欢</a>
+          </li>
+          <li class="nav-item ms-auto">
+            <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
+              <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
+            </select>
+          </li>
         </ul>
       </div>
     </div>
 
     <!-- 列表 -->
-    <div v-for="(item, idx) in items" :key="item.fanhao" class="row py-3 card-item">
+    <div v-for="item in items" :key="item.fanhao" class="row py-3 card-item">
       <div class="col-12 col-md-4">
         <img class="img-fluid img-thumbnail coverimg" :src="imgProxyUrl(item.cover_img_url)"
              @click="showImg(item.cover_img_url)" alt="cover" loading="lazy" />
@@ -96,9 +99,12 @@ export default {
       }
     }
 
-    const switchTab = (mt, lk) => {
-      movieType.value = mt
+    const switchLike = (lk) => {
       like.value = lk
+      loadData(1)
+    }
+
+    const onTypeChange = () => {
       loadData(1)
     }
 
@@ -115,7 +121,7 @@ export default {
 
     onMounted(() => loadData())
 
-    return { items, pageInfo, like, movieTypes, movieType, todayUpdate, todayRecommend, imgProxyUrl, showImg, isToday, switchTab, goPage, correct }
+    return { items, pageInfo, like, movieTypes, movieType, todayUpdate, todayRecommend, imgProxyUrl, showImg, isToday, switchLike, onTypeChange, goPage, correct }
   }
 }
 </script>

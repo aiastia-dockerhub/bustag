@@ -4,6 +4,11 @@ body {
 .coverimg {
   cursor: pointer;
 }
+/* 导航栏字体加大，和旧版 Bootstrap 4 一致 */
+.navbar .nav-link {
+  font-size: 1.05rem;
+  padding: 0.5rem 1rem;
+}
 .navbar-brand img {
   height: 40px;
 }

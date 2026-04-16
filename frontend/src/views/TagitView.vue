@@ -1,23 +1,26 @@
 <template>
   <div class="container">
-    <!-- 影片类型 + 喜欢筛选 Tab -->
+    <!-- 影片类型下拉 + 状态 Tab -->
     <div class="row py-3">
       <div class="col-12">
-        <ul class="nav nav-tabs flex-nowrap overflow-auto">
-          <template v-for="mt in movieTypes" :key="mt">
-            <li class="nav-item">
-              <a class="nav-link" :class="{ active: movieType === mt && like === null }"
-                 href="#" @click.prevent="switchTab(mt, null)">{{ mt === 'normal' ? '有码' : '无码' }}未打标</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" :class="{ active: movieType === mt && like === 1 }"
-                 href="#" @click.prevent="switchTab(mt, 1)">{{ mt === 'normal' ? '有码' : '无码' }}喜欢</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" :class="{ active: movieType === mt && like === 0 }"
-                 href="#" @click.prevent="switchTab(mt, 0)">{{ mt === 'normal' ? '有码' : '无码' }}不喜欢</a>
-            </li>
-          </template>
+        <ul class="nav nav-tabs">
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === null }"
+               href="#" @click.prevent="switchTab(null)">未打标</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 1 }"
+               href="#" @click.prevent="switchTab(1)">喜欢</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 0 }"
+               href="#" @click.prevent="switchTab(0)">不喜欢</a>
+          </li>
+          <li class="nav-item ms-auto">
+            <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
+              <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
+            </select>
+          </li>
         </ul>
       </div>
     </div>
@@ -79,9 +82,12 @@ export default {
       }
     }
 
-    const switchTab = (mt, lk) => {
-      movieType.value = mt
+    const switchTab = (lk) => {
       like.value = lk
+      loadData(1)
+    }
+
+    const onTypeChange = () => {
       loadData(1)
     }
 
@@ -98,7 +104,7 @@ export default {
 
     onMounted(() => loadData())
 
-    return { items, pageInfo, like, movieTypes, movieType, imgProxyUrl, showImg, switchTab, goPage, tag }
+    return { items, pageInfo, like, movieTypes, movieType, imgProxyUrl, showImg, switchTab, onTypeChange, goPage, tag }
   }
 }
 </script>

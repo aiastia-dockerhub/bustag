@@ -46,8 +46,12 @@
       </div>
     </div>
 
-    <!-- 页面内容 -->
-    <router-view @message="globalMsg = $event" />
+    <!-- 页面内容（keep-alive 缓存页面，切换不重新加载） -->
+    <router-view v-slot="{ Component }">
+      <keep-alive>
+        <component :is="Component" @message="globalMsg = $event" />
+      </keep-alive>
+    </router-view>
 
     <!-- 图片放大模态框 -->
     <div class="modal fade" id="imageModal" tabindex="-1">
