@@ -6,12 +6,18 @@
 	<div class="col-12">
 		<!-- 喜欢/不喜欢：AI模型预测的结果分类，喜欢=预测你会喜欢，不喜欢=预测你不会喜欢 -->
 		<ul class="nav nav-tabs">
+		% for mt in movie_types:
+		% mt_like_active = 'active' if movie_type == mt and like == 1 else ''
 		<li class="nav-item">
-			<a class="nav-link {{'active' if like==1 else ''}}" href="?like=1">喜欢</a>
+			<a class="nav-link {{mt_like_active}}" href="?type={{mt}}&like=1">{{'有码' if mt == 'normal' else '无码'}}喜欢</a>
 		</li>
+		% end
+		% for mt in movie_types:
+		% mt_dislike_active = 'active' if movie_type == mt and like == 0 else ''
 		<li class="nav-item">
-			<a class="nav-link {{'' if like==1 else 'active'}}" href="?like=0">不喜欢</a>
+			<a class="nav-link {{mt_dislike_active}}" href="?type={{mt}}&like=0">{{'有码' if mt == 'normal' else '无码'}}不喜欢</a>
 		</li>
+		% end
 		<li class="nav-item">
 		</li>
 		</ul>
@@ -20,7 +26,7 @@
 %#generate list of rows of items
 % i = 1
 %for item in items:
-<form id="form-{{i}}" action="/correct/{{item.fanhao}}?page={{curr_page}}&like={{like}}" method="post">
+<form id="form-{{i}}" action="/correct/{{item.fanhao}}?page={{curr_page}}&like={{like}}&type={{movie_type}}" method="post">
 	<div class="row py-3">
 		<div class="col-12 col-md-4">
 		<img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">
@@ -55,6 +61,6 @@
 	</form>
 % i = i + 1
 %end
-% include('pagination.tpl', page_info=page_info)
+% include('pagination.tpl', page_info=page_info, movie_type=movie_type)
 
 </div>

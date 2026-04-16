@@ -14,7 +14,7 @@ javbus_url = https://www.javbus.com
 img_base_url = https://www.javbus.com
 count = 10
 magnet = exist
-movie_type = normal
+movie_type = normal,uncensored
 interval = 10800  # 10800秒=3小时, 3600秒=1小时, 1800秒=30分钟
 api_interval = 0.5
 batch_size = 100

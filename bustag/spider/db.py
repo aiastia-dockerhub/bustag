@@ -41,12 +41,14 @@ class Item(BaseModel):
     release_date = DateField()
     add_date = DateTimeField(default=datetime.datetime.now)
     meta_info = TextField()
+    # 影片类型：normal=有码, uncensored=无码
+    movie_type = CharField(default='normal')
 
     def __repr__(self):
         return f'<Item:{self.fanhao} {self.title}>'
 
     @staticmethod
-    def saveit(meta_info):
+    def saveit(meta_info, movie_type='normal'):
         item_release_date = date.fromisoformat(meta_info.pop('release_date'))
         item_fanhao = meta_info.pop('fanhao')
         item_title = meta_info.pop('title')
@@ -54,7 +56,8 @@ class Item(BaseModel):
         item_meta = json.dumps(meta_info)
         try:
             item = Item.create(fanhao=item_fanhao, title=item_title, url=item_url,
-                               release_date=item_release_date, meta_info=item_meta)
+                               release_date=item_release_date, meta_info=item_meta,
+                               movie_type=movie_type)
             logger.debug(f'save item:  {item}')
         except IntegrityError:
             logger.debug('Item exists: {item_fanhao}')
@@ -219,11 +222,11 @@ class LocalItem(BaseModel):
             local_item.last_view_date) if local_item.last_view_date else ''
 
 
-def save(meta_info, tags):
+def save(meta_info, tags, movie_type='normal'):
     item_title = meta_info['title']
     tag_objs = []
     try:
-        item = Item.saveit(meta_info)
+        item = Item.saveit(meta_info, movie_type=movie_type)
     except ExistError:
         logger.debug(f'item exists: {item_title}')
     else:
@@ -260,9 +263,10 @@ def test_save():
     LocalItem.saveit('MADM-116', '/Download/MADM-116.avi')
 
 
-def get_items(rate_type=None, rate_value=None, page=1, page_size=10):
+def get_items(rate_type=None, rate_value=None, page=1, page_size=10, movie_type=None):
     '''
     get required items based on some conditions
+    movie_type: None=全部, 'normal'=有码, 'uncensored'=无码
     '''
     items_list = []
     clauses = []
@@ -272,6 +276,8 @@ def get_items(rate_type=None, rate_value=None, page=1, page_size=10):
         clauses.append(ItemRate.rate_type.is_null())
     if rate_value is not None:
         clauses.append(ItemRate.rate_value == rate_value)
+    if movie_type is not None:
+        clauses.append(Item.movie_type == movie_type)
     # 排序：添加日期降序 → 发行日期降序 → ID降序（避免未来发行日期霸占顶部）
     q = (Item.select(Item, ItemRate)
          .join(ItemRate, JOIN.LEFT_OUTER, attr='item_rate')
@@ -403,6 +409,14 @@ def get_tags_for_items(items_query):
 def init():
     db.connect(reuse_if_open=True)
     db.create_tables([Item, Tag, ItemTag, ItemRate, LocalItem])
+    # 自动迁移：旧数据库没有 movie_type 字段时自动添加
+    try:
+        columns = [col.name for col in db.get_columns('item')]
+        if 'movie_type' not in columns:
+            db.execute_sql('ALTER TABLE item ADD COLUMN movie_type VARCHAR(20) DEFAULT \'normal\'')
+            logger.info('Database migrated: added movie_type column to item table')
+    except Exception as e:
+        logger.warning(f'Database migration check: {e}')
 
 
 init()

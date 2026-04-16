@@ -50,14 +50,22 @@ def index():
     rate_type = RATE_TYPE.SYSTEM_RATE.value
     rate_value = int(request.query.get('like', RATE_VALUE.LIKE.value))
     page = int(request.query.get('page', 1))
+    # 影片类型筛选：从配置读取支持的类型，URL 参数覆盖
+    movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
+    movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
+    movie_type = request.query.get('type', movie_types[0] if movie_types else 'normal')
+    # 如果 type 参数不在配置的类型中，使用第一个类型
+    if movie_type not in movie_types:
+        movie_type = movie_types[0] if movie_types else 'normal'
     items, page_info = get_items(
-        rate_type=rate_type, rate_value=rate_value, page=page)
+        rate_type=rate_type, rate_value=rate_value, page=page, movie_type=movie_type)
     for item in items:
         _remove_extra_tags(item)
     today_update_count = db.get_today_update_count()
     today_recommend_count = db.get_today_recommend_count()
     msg = f'今日更新 {today_update_count} , 今日推荐 {today_recommend_count}'
-    return template('index', items=items, page_info=page_info, like=rate_value, path=request.path, msg=msg)
+    return template('index', items=items, page_info=page_info, like=rate_value,
+                    path=request.path, msg=msg, movie_types=movie_types, movie_type=movie_type)
 
 
 @route('/tagit')
@@ -126,7 +134,8 @@ def correct(fanhao):
                 f'updated item fanhao: {fanhao}, {"and correct the rate_value" if not is_correct else ""}')
     page = int(request.query.get('page', 1))
     like = int(request.query.get('like', 1))
-    url = f'/?page={page}&like={like}'
+    movie_type = request.query.get('type', 'normal')
+    url = f'/?page={page}&like={like}&type={movie_type}'
     if formid:
         url += f'#{formid}'
     redirect(url)

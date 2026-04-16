@@ -25,12 +25,13 @@ def get_url_by_fanhao(fanhao):
     return fanhao
 
 
-def fetch_and_save_movie(movie_id):
+def fetch_and_save_movie(movie_id, movie_type='normal'):
     '''
     获取单个影片详情并保存到数据库
 
     Args:
         movie_id: 番号
+        movie_type: 影片类型（normal=有码, uncensored=无码）
 
     Returns:
         bool: 是否成功保存
@@ -52,7 +53,7 @@ def fetch_and_save_movie(movie_id):
         javbus_url = APP_CONFIG.get('download.javbus_url', 'https://www.javbus.com')
         meta['url'] = f'{javbus_url}/{movie_id}'
 
-        save(meta, tags)
+        save(meta, tags, movie_type=movie_type)
         logger.info(f'Saved movie: {movie_id}')
         print(f'item {movie_id} is processed')
         return True
@@ -76,11 +77,39 @@ def download_movies(pages=None):
     total_processed = 0
 
     magnet = APP_CONFIG.get('download.magnet', 'exist')
-    movie_type = APP_CONFIG.get('download.movie_type', 'normal')
+    # 支持多种类型：normal,uncensored（逗号分隔）
+    movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
+    movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
+
+    for mt in movie_types:
+        logger.info(f'Starting download for movie_type: {mt}')
+        saved, processed = _download_by_type(pages=pages, magnet=magnet, movie_type=mt)
+        total_saved += saved
+        total_processed += processed
+
+    logger.info(f'Download complete: processed {total_processed}, saved {total_saved}')
+    print(f'Download complete: processed {total_processed}, saved {total_saved}')
+    return total_saved
+
+
+def _download_by_type(pages, magnet, movie_type):
+    '''
+    按影片类型批量下载
+
+    Args:
+        pages: 要下载的页数
+        magnet: 磁力链接筛选
+        movie_type: 影片类型（normal/uncensored）
+
+    Returns:
+        tuple: (saved_count, processed_count)
+    '''
+    total_saved = 0
+    total_processed = 0
 
     for page in range(1, pages + 1):
-        logger.info(f'Fetching movie list page {page}/{pages}')
-        print(f'process page {page}')
+        logger.info(f'Fetching movie list page {page}/{pages} (type={movie_type})')
+        print(f'process page {page} (type={movie_type})')
 
         try:
             result = get_movies(page=page, magnet=magnet, movie_type=movie_type)
@@ -100,7 +129,7 @@ def download_movies(pages=None):
                 continue
 
             total_processed += 1
-            if fetch_and_save_movie(movie_id):
+            if fetch_and_save_movie(movie_id, movie_type=movie_type):
                 total_saved += 1
                 page_saved += 1
 
@@ -115,9 +144,8 @@ def download_movies(pages=None):
         # 分页间隔
         time.sleep(2)
 
-    logger.info(f'Download complete: processed {total_processed}, saved {total_saved}')
-    print(f'Download complete: processed {total_processed}, saved {total_saved}')
-    return total_saved
+    logger.info(f'Download type={movie_type} complete: processed {total_processed}, saved {total_saved}')
+    return total_saved, total_processed
 
 
 def download_by_fanhaos(fanhaos):
