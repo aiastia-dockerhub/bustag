@@ -19,8 +19,8 @@ export const getLocal = (params) => api.get('/local', { params })
 export const postLocalFanhao = (data) => api.post('/local_fanhao', data)
 // 模型信息
 export const getModel = () => api.get('/model')
-// 训练模型
-export const doTraining = () => api.get('/do-training')
+// 训练模型（5分钟超时，GridSearchCV 训练较慢）
+export const doTraining = () => api.get('/do-training', { timeout: 300000 })
 // 上传数据库
 export const postLoadDb = (formData) => api.post('/load_db', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
