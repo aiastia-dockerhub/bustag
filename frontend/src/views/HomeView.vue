@@ -50,8 +50,8 @@
         </div>
       </div>
       <div class="col-5 col-md-3 d-flex align-self-center justify-content-center">
-        <button class="btn btn-primary mx-1" @click="correct(item.fanhao, true)">正确</button>
-        <button class="btn btn-danger" @click="correct(item.fanhao, false)">错误</button>
+        <button class="btn btn-primary btn-sm mx-1" @click="correct(item.fanhao, true, $event)">正确</button>
+        <button class="btn btn-danger btn-sm" @click="correct(item.fanhao, false, $event)">错误</button>
       </div>
     </div>
 
@@ -110,14 +110,23 @@ export default {
 
     const goPage = (page) => loadData(page)
 
-    const correct = async (fanhao, isCorrect) => {
+    const correct = async (fanhao, isCorrect, event) => {
+      // 禁用按钮，显示处理中
+      const btn = event?.target
+      if (btn) {
+        btn.disabled = true
+        btn.textContent = '...'
+      }
       try {
         const res = await postCorrect(fanhao, { is_correct: isCorrect })
-        console.log('反馈结果:', res.data)
         const page = pageInfo.value?.current_page || 1
         loadData(page)
       } catch (e) {
         console.error('反馈失败:', e)
+        if (btn) {
+          btn.disabled = false
+          btn.textContent = isCorrect ? '正确' : '错误'
+        }
         alert('反馈失败: ' + (e.response?.status || e.message))
       }
     }
