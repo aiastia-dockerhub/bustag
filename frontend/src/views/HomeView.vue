@@ -85,9 +85,11 @@ export default {
       return String(dateStr).startsWith(today)
     }
 
-    const loadData = async (page = 1) => {
+    const loadData = async (page = 1, bustCache = false) => {
       try {
-        const res = await getIndex({ like: like.value, page, type: movieType.value })
+        const params = { like: like.value, page, type: movieType.value }
+        if (bustCache) params._t = Date.now()  // 绕过 CF 缓存
+        const res = await getIndex(params)
         items.value = res.data.items
         pageInfo.value = res.data.page_info
         movieTypes.value = res.data.movie_types
@@ -120,7 +122,7 @@ export default {
       try {
         const res = await postCorrect(fanhao, { is_correct: isCorrect })
         const page = pageInfo.value?.current_page || 1
-        loadData(page)
+        loadData(page, true)  // bustCache=true 绕过 CF 缓存
       } catch (e) {
         console.error('反馈失败:', e)
         if (btn) {
