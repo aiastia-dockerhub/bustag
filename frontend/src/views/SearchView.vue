@@ -21,7 +21,7 @@
                  @click="showImg(item.cover_img_url)" alt="cover" />
           </div>
           <div class="col-7 col-md-5">
-            <div class="small text-muted">发行日期: {{ item.release_date }}</div>
+            <div class="small text-muted">ID: {{ item.id }} | 发行日期: {{ item.release_date }}</div>
             <h6>{{ item.fanhao }}</h6>
             <a :href="item.url" target="_blank">{{ (item.title || '').substring(0, 30) }}</a>
             <div class="mt-1">
@@ -40,7 +40,7 @@
                  @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
           </div>
           <div class="col-7 col-md-5">
-            <div class="small text-muted">发行日期: {{ tItem.release_date }}</div>
+            <div class="small text-muted">ID: {{ tItem.id }} | 发行日期: {{ tItem.release_date }}</div>
             <h6>{{ tItem.fanhao }}</h6>
             <a :href="tItem.url" target="_blank">{{ (tItem.title || '').substring(0, 30) }}</a>
             <div class="mt-1">
