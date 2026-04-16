@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'feature/movie-type-filter'
     tags:
       - 'v*'
   pull_request:
@@ -26,6 +27,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=test,enable={{is_default_branch}}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/feature/movie-type-filter' }}
             type=semver,pattern={{version}}
       -
         name: Login to DockerHub
