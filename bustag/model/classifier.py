@@ -101,7 +101,7 @@ def recommend():
     use trained model to recommend items
     '''
     ids, X = prepare_predict_data()
-    if len(X) == 0:
+    if len(X) == 0 or X.size == 0:
         logger.warning(
             f'no data for recommend')
         return

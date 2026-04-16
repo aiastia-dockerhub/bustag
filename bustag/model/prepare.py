@@ -102,14 +102,25 @@ def prepare_predict_data():
     unrated_items, _ = get_items(
         rate_type=rate_type, rate_value=rate_value, page=page)
 
+    if not unrated_items:
+        logger.warning('no unrated items for prediction')
+        return np.array([]), np.array([]).reshape(0, 0)
+
     binarizers = load_model(get_data_path(BINARIZER_PATH))
-    dicts = (as_dict(item) for item in unrated_items)
+    dicts = list(as_dict(item) for item in unrated_items)
+
+    if not dicts:
+        return np.array([]), np.array([]).reshape(0, 0)
+
     df = pd.DataFrame(dicts)
 
-    # 展开标签
+    # 展开标签（安全检查）
+    if 'tags_by_type' not in df.columns:
+        df['tags_by_type'] = [{} for _ in range(len(df))]
+
     for tag_type in TAG_TYPES:
         df[f'tags_{tag_type}'] = df['tags_by_type'].apply(
-            lambda d: d.get(tag_type, []))
+            lambda d: d.get(tag_type, []) if isinstance(d, dict) else [])
 
     df.set_index('id', inplace=True)
 
