@@ -34,9 +34,6 @@ RUN chmod 755 /app/docker/entry.sh
 
 EXPOSE 8000
 
-ARG GIT_COMMIT=unknown
-RUN echo "${GIT_COMMIT}" > /app/.git_commit
-
 LABEL maintainer="bustag fork - using javbus-api"
 
 CMD ["/app/docker/entry.sh"]
