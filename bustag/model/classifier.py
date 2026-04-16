@@ -44,35 +44,22 @@ def train():
             f'训练数据只有一个类别({unique_classes}), 无法训练模型. '
             f'请确保既有"喜欢"也有"不喜欢"的打标数据')
 
-    # GridSearchCV 自动搜索最优参数
-    logger.info('开始 GridSearchCV 参数搜索...')
-    param_grid = {
-        'n_estimators': [100, 200],
-        'max_depth': [3, 5],
-        'learning_rate': [0.1],
-        'min_samples_split': [2, 5],
-    }
-
-    gbc = GradientBoostingClassifier(random_state=42)
-    grid_search = GridSearchCV(
-        gbc, param_grid,
-        cv=3,               # 3 折交叉验证
-        scoring='f1',       # 以 F1 分数作为优化目标
-        n_jobs=-1,          # 使用所有 CPU 核心
-        verbose=1,
+    # 梯度提升分类器（固定参数，训练快）
+    logger.info('开始训练 GradientBoosting 模型...')
+    model = GradientBoostingClassifier(
+        n_estimators=100,
+        max_depth=3,
+        learning_rate=0.1,
+        min_samples_split=2,
+        random_state=42,
     )
-    grid_search.fit(X_train, y_train)
+    model.fit(X_train, y_train)
 
-    best_model = grid_search.best_estimator_
-    logger.info(f'最优参数: {grid_search.best_params_}')
-    logger.info(f'最优交叉验证 F1: {grid_search.best_score_:.4f}')
-
-    # 用最优模型在测试集上评估
-    y_pred = best_model.predict(X_test)
+    y_pred = model.predict(X_test)
     confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])
     scores = evaluate(confusion_mtx, y_test, y_pred)
 
-    models_data = (best_model, scores)
+    models_data = (model, scores)
     dump_model(get_data_path(MODEL_FILE), models_data)
     logger.info('new model trained')
     return models_data
