@@ -75,11 +75,19 @@
 
 {{!base}}
 <% from bustag import __version__ %>
+<%
+import subprocess
+try:
+    git_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
+except Exception:
+    git_commit = 'unknown'
+%>
 <footer class="my-3">
   <div class="container">
   <div class="col">
     <p class="text-center">
     <span class="badge badge-pill badge-info">version : {{__version__}}</span>
+    <span class="badge badge-pill badge-secondary">commit : {{git_commit}}</span>
   </p>
   <p class="text-center">
   Developed by 凤凰山@2019 <a href="https://github.com/gxtrobot/bustag" target="_blank">github</a>
