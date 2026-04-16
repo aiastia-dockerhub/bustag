@@ -64,4 +64,4 @@ EXPOSE 80
 
 LABEL maintainer="bustag fork - using javbus-api"
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/app/docker/entry.sh"]

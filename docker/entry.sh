@@ -44,5 +44,5 @@ if [ -n "$JAVBUS_IMG_URL" ]; then
     echo "Configured img_base_url: $JAVBUS_IMG_URL"
 fi
 
-echo "Starting bustag server..."
-exec python3 -m bustag.app.index
+echo "Starting supervisord..."
+exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
