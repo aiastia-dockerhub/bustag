@@ -272,11 +272,11 @@ def get_items(rate_type=None, rate_value=None, page=1, page_size=10):
         clauses.append(ItemRate.rate_type.is_null())
     if rate_value is not None:
         clauses.append(ItemRate.rate_value == rate_value)
-    # 排序：添加日期降序 → 发行日期降序 → ID降序（避免未来发行日期霸占顶部）
+    # 排序：添加日期降序(今天→昨天) → 发行日期降序(新→旧) → ID升序(小→大)
     q = (Item.select(Item, ItemRate)
          .join(ItemRate, JOIN.LEFT_OUTER, attr='item_rate')
          .where(reduce(operator.and_, clauses))
-         .order_by(Item.add_date.desc(), Item.release_date.desc(), Item.id.desc())
+         .order_by(Item.add_date.desc(), Item.release_date.desc(), Item.id.asc())
          )
     total_items = q.count()
     if not page is None:
@@ -368,12 +368,12 @@ def get_items_by_tag(tag_value, page=1, page_size=10):
     if not tag:
         return items_list, (0, 0, 1, page_size)
 
-    # 排序：添加日期降序 → 发行日期降序 → ID降序
+    # 排序：添加日期降序(今天→昨天) → 发行日期降序(新→旧) → ID升序(小→大)
     q = (Item.select(Item)
          .join(ItemTag, on=(ItemTag.item == Item.fanhao))
          .join(Tag, on=(ItemTag.tag == Tag.id))
          .where(Tag.value == tag_value)
-         .order_by(Item.add_date.desc(), Item.release_date.desc(), Item.id.desc())
+         .order_by(Item.add_date.desc(), Item.release_date.desc(), Item.id.asc())
          )
     total_items = q.count()
     if page is not None:
