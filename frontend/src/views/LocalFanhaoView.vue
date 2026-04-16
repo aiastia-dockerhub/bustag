@@ -21,6 +21,15 @@
             <label class="form-label">番号列表（每行一个）</label>
             <textarea class="form-control" v-model="fanhao" rows="10" placeholder="SSIS-406&#10;ABP-123"></textarea>
           </div>
+          <div class="mb-3">
+            <label class="form-label">影片类型</label>
+            <select class="form-select" v-model="movieType">
+              <option value="mixed">混合（自动判断）</option>
+              <option value="normal">有码</option>
+              <option value="uncensored">无码</option>
+            </select>
+            <div class="form-text">选择"混合"时，系统会自动通过搜索接口判断每个番号是有码还是无码</div>
+          </div>
           <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" id="tagLike" v-model="tagLike" true-value="1" false-value="0">
             <label class="form-check-label" for="tagLike">同时打标为喜欢</label>
@@ -40,12 +49,17 @@ export default {
   setup() {
     const fanhao = ref('')
     const tagLike = ref('0')
+    const movieType = ref('mixed')
     const msg = ref('')
 
     const submitFanhao = async () => {
       if (!fanhao.value.trim()) return
       try {
-        const res = await postLocalFanhao({ fanhao: fanhao.value, tag_like: tagLike.value === '1' })
+        const res = await postLocalFanhao({
+          fanhao: fanhao.value,
+          tag_like: tagLike.value === '1',
+          movie_type: movieType.value
+        })
         msg.value = res.data.msg
         fanhao.value = ''
       } catch (e) {
@@ -53,7 +67,7 @@ export default {
       }
     }
 
-    return { fanhao, tagLike, msg, submitFanhao }
+    return { fanhao, tagLike, movieType, msg, submitFanhao }
   }
 }
 </script>

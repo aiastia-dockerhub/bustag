@@ -213,6 +213,7 @@ def api_local_fanhao():
         data = request.json or {}
         fanhao_list = data.get('fanhao', '')
         tag_like = data.get('tag_like', False)
+        movie_type = data.get('movie_type', 'mixed')
 
         missed_fanhao, local_file_count, tag_file_count = add_local_fanhao(
             fanhao_list, tag_like)

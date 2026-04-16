@@ -148,13 +148,37 @@ def _download_by_type(pages, magnet, movie_type):
     return total_saved, total_processed
 
 
-def download_by_fanhaos(fanhaos):
+def detect_movie_type(fanhao):
+    '''
+    自动判断番号是有码还是无码
+    通过搜索无码接口，如果能搜到则认为是无码
+
+    Args:
+        fanhao: 番号
+
+    Returns:
+        str: 'uncensored' 或 'normal'
+    '''
+    try:
+        result = search_movies(keyword=fanhao, movie_type='uncensored')
+        movies = result.get('movies', [])
+        for movie in movies:
+            if movie.get('id', '').upper() == fanhao.upper():
+                logger.info(f'Detected {fanhao} as uncensored')
+                return 'uncensored'
+    except Exception as e:
+        logger.warning(f'Failed to detect type for {fanhao}: {e}')
+    return 'normal'
+
+
+def download_by_fanhaos(fanhaos, movie_type='mixed'):
     '''
     根据番号列表下载影片数据
     超过 batch_size 时自动分批处理，批次间暂停避免过快
 
     Args:
         fanhaos: list - 番号列表
+        movie_type: str - 'normal'=有码, 'uncensored'=无码, 'mixed'=混合（自动判断）
 
     Returns:
         int: 成功保存的数量
@@ -166,7 +190,14 @@ def download_by_fanhaos(fanhaos):
     total = len(fanhaos)
     for i, fanhao in enumerate(fanhaos):
         total_processed = i + 1
-        if fetch_and_save_movie(fanhao):
+
+        # 确定影片类型
+        if movie_type == 'mixed':
+            mt = detect_movie_type(fanhao)
+        else:
+            mt = movie_type
+
+        if fetch_and_save_movie(fanhao, movie_type=mt):
             total_saved += 1
 
         # 分批处理：每 batch_size 个暂停

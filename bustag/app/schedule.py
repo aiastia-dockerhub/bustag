@@ -13,17 +13,18 @@ from bustag.util import logger, APP_CONFIG
 scheduler = None
 
 
-def download(fanhaos=None):
+def download(fanhaos=None, movie_type='mixed'):
     '''
     下载更新数据
 
     Args:
         fanhaos: list - 指定要下载的番号列表，为 None 则批量下载
+        movie_type: str - 'normal'=有码, 'uncensored'=无码, 'mixed'=混合（自动判断）
     '''
     print('start download')
     if fanhaos:
-        logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items')
-        bus_spider.download_by_fanhaos(fanhaos)
+        logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items, movie_type={movie_type}')
+        bus_spider.download_by_fanhaos(fanhaos, movie_type=movie_type)
     else:
         pages = int(APP_CONFIG.get('download.count', 10))
         bus_spider.download_movies(pages=pages)

@@ -4,18 +4,20 @@
     <div class="row py-3">
       <div class="col-12">
         <ul class="nav nav-tabs flex-nowrap overflow-auto">
-          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-all'">
-            <a class="nav-link" :class="{ active: movieType === mt && like === null }"
-               href="#" @click.prevent="switchTab(mt, null)">{{ mt === 'normal' ? '有码' : '无码' }}全部</a>
-          </li>
-          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-like'">
-            <a class="nav-link" :class="{ active: movieType === mt && like === 1 }"
-               href="#" @click.prevent="switchTab(mt, 1)">{{ mt === 'normal' ? '有码' : '无码' }}喜欢</a>
-          </li>
-          <li class="nav-item" v-for="mt in movieTypes" :key="mt + '-dislike'">
-            <a class="nav-link" :class="{ active: movieType === mt && like === 0 }"
-               href="#" @click.prevent="switchTab(mt, 0)">{{ mt === 'normal' ? '有码' : '无码' }}不喜欢</a>
-          </li>
+          <template v-for="mt in movieTypes" :key="mt">
+            <li class="nav-item">
+              <a class="nav-link" :class="{ active: movieType === mt && like === null }"
+                 href="#" @click.prevent="switchTab(mt, null)">{{ mt === 'normal' ? '有码' : '无码' }}未打标</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" :class="{ active: movieType === mt && like === 1 }"
+                 href="#" @click.prevent="switchTab(mt, 1)">{{ mt === 'normal' ? '有码' : '无码' }}喜欢</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" :class="{ active: movieType === mt && like === 0 }"
+                 href="#" @click.prevent="switchTab(mt, 0)">{{ mt === 'normal' ? '有码' : '无码' }}不喜欢</a>
+            </li>
+          </template>
         </ul>
       </div>
     </div>
