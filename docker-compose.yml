@@ -7,9 +7,10 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    # 如果需要认证，取消注释以下环境变量
-    # environment:
-    #   - JAVBUS_API_TOKEN=your_token_here
+    environment:
+      - TZ=Asia/Shanghai
+      # 如果需要认证，取消注释以下环境变量
+      # - JAVBUS_API_TOKEN=your_token_here
 
   bustag:
     image: aiastia/bustag:test
@@ -18,6 +19,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - TZ=Asia/Shanghai
       - JAVBUS_API_URL=http://javbus-api:3000
       # - JAVBUS_AUTH_TOKEN=your_token_here
     volumes:

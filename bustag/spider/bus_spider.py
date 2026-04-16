@@ -75,12 +75,15 @@ def download_movies(pages=None):
     total_saved = 0
     total_processed = 0
 
+    magnet = APP_CONFIG.get('download.magnet', 'exist')
+    movie_type = APP_CONFIG.get('download.movie_type', 'normal')
+
     for page in range(1, pages + 1):
         logger.info(f'Fetching movie list page {page}/{pages}')
         print(f'process page {page}')
 
         try:
-            result = get_movies(page=page, magnet='all')
+            result = get_movies(page=page, magnet=magnet, movie_type=movie_type)
         except Exception as e:
             logger.error(f'Failed to fetch page {page}: {e}')
             continue
@@ -162,10 +165,12 @@ def search_and_download(keyword, pages=1):
         int: 成功保存的数量
     '''
     total_saved = 0
+    magnet = APP_CONFIG.get('download.magnet', 'exist')
+    movie_type = APP_CONFIG.get('download.movie_type', 'normal')
 
     for page in range(1, pages + 1):
         try:
-            result = search_movies(keyword=keyword, page=page, magnet='all')
+            result = search_movies(keyword=keyword, page=page, magnet=magnet, movie_type=movie_type)
         except Exception as e:
             logger.error(f'Search failed for "{keyword}" page {page}: {e}')
             continue

@@ -1,2 +1,5 @@
+# 注意：此 crontab 未生效（entry.sh 未启动 cron 服务），实际定时任务由 APScheduler 驱动
+# 如果需要启用 crontab，需要在 entry.sh 中安装并启动 cron
+# APScheduler 的间隔由 data/config.ini 中的 interval 控制（默认 10800 秒 = 3 小时）
 */30 * * * * /app/docker/run_download.sh >> /var/log/bustag.log 2>&1
 
