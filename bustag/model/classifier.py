@@ -2,8 +2,7 @@
 create classifier model and predict
 '''
 from sklearn.metrics import f1_score, recall_score, accuracy_score, precision_score, confusion_matrix
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
 from bustag.model.prepare import prepare_data, prepare_predict_data
 from bustag.model.persist import load_model, dump_model
 from bustag.spider.db import RATE_TYPE, ItemRate
@@ -19,9 +18,8 @@ def load():
 
 
 def create_model():
-    """创建梯度提升分类器"""
-    gbc = GradientBoostingClassifier(random_state=42)
-    return gbc
+    knn = KNeighborsClassifier(n_neighbors=11)
+    return knn
 
 
 def predict(X_test):
@@ -31,6 +29,7 @@ def predict(X_test):
 
 
 def train():
+    model = create_model()
     X_train, X_test, y_train, y_test = prepare_data()
     total = len(X_test) + len(X_train)
     if total < MIN_TRAIN_NUM:
@@ -44,33 +43,10 @@ def train():
             f'训练数据只有一个类别({unique_classes}), 无法训练模型. '
             f'请确保既有"喜欢"也有"不喜欢"的打标数据')
 
-    # GridSearchCV 自动搜索最优参数
-    logger.info('开始 GridSearchCV 参数搜索（54种组合×3折）...')
-    param_grid = {
-        'n_estimators': [50, 100, 200],
-        'max_depth': [3, 5, 7],
-        'learning_rate': [0.05, 0.1, 0.2],
-        'min_samples_split': [2, 5],
-    }
-
-    gbc = GradientBoostingClassifier(random_state=42)
-    grid_search = GridSearchCV(
-        gbc, param_grid,
-        cv=3,
-        scoring='f1',
-        n_jobs=-1,
-        verbose=1,
-    )
-    grid_search.fit(X_train, y_train)
-
-    model = grid_search.best_estimator_
-    logger.info(f'最优参数: {grid_search.best_params_}')
-    logger.info(f'最优交叉验证 F1: {grid_search.best_score_:.4f}')
-
+    model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])
     scores = evaluate(confusion_mtx, y_test, y_pred)
-
     models_data = (model, scores)
     dump_model(get_data_path(MODEL_FILE), models_data)
     logger.info('new model trained')
