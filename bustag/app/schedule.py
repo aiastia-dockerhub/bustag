@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.cron import CronTrigger
 from bustag.spider import bus_spider
 from bustag.util import logger, APP_CONFIG
 
@@ -39,10 +40,11 @@ def download(fanhaos=None):
 def start_scheduler():
     '''
     启动定时调度器
+    支持 interval（每隔N秒）和 cron（每天固定时间）两种调度模式
     '''
     global scheduler
 
-    interval = int(APP_CONFIG.get('download.interval', 1800))
+    schedule_mode = APP_CONFIG.get('download.schedule_mode', 'interval').lower().strip()
 
     scheduler = BackgroundScheduler()
 
@@ -51,12 +53,21 @@ def start_scheduler():
     date_trigger = DateTrigger(run_date=t1)
     scheduler.add_job(download, trigger=date_trigger)
 
-    # 定时执行
-    int_trigger = IntervalTrigger(seconds=interval)
-    scheduler.add_job(download, trigger=int_trigger)
+    if schedule_mode == 'cron':
+        # 定时模式：每天固定时间执行
+        times = APP_CONFIG.get('download.schedule_times', '8,20')
+        hours = [int(h.strip()) for h in times.split(',')]
+        cron_trigger = CronTrigger(hour=hours)
+        scheduler.add_job(download, trigger=cron_trigger)
+        logger.info(f'Scheduler started (cron mode), daily at hours: {hours}')
+    else:
+        # 间隔模式：每隔 N 秒执行
+        interval = int(APP_CONFIG.get('download.interval', 1800))
+        int_trigger = IntervalTrigger(seconds=interval)
+        scheduler.add_job(download, trigger=int_trigger)
+        logger.info(f'Scheduler started (interval mode), interval={interval}s')
 
     scheduler.start()
-    logger.info(f'Scheduler started, interval={interval}s')
 
 
 def add_download_job(fanhaos):
