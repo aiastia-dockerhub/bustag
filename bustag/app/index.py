@@ -27,14 +27,21 @@ def _connect_db():
 
 @hook('after_request')
 def _close_db():
-    response.content_type = response.content_type + '; charset=utf-8' if 'charset' not in response.content_type else response.content_type
+    # 仅对文本类型添加 charset，避免污染图片等二进制类型的 content-type
+    ct = response.content_type or ''
+    if ct.startswith(('text/', 'application/json', 'application/javascript', 'application/xml')):
+        if 'charset' not in ct:
+            response.content_type = ct + '; charset=utf-8'
     if not dbconn.is_closed():
         dbconn.close()
 
 
 @route('/static/<filepath:path>')
 def send_static(filepath):
-    return static_file(filepath, root=dirname+'/static/')
+    resp = static_file(filepath, root=dirname+'/static/')
+    # 为静态资源设置缓存头，让 CF 能缓存（避免 DYNAMIC 判定）
+    resp.headers['Cache-Control'] = 'public, max-age=604800'  # 7 天
+    return resp
 
 
 def _remove_extra_tags(item):
@@ -252,6 +259,9 @@ def img_proxy():
     cache_enabled = APP_CONFIG.get('download.img_cache_enabled', 'true').lower() != 'false'
     cache_path = _get_cached_img_path(img_url)
 
+    # 生成 ETag（基于 URL 的 MD5，与缓存文件名一致）
+    url_hash = hashlib.md5(img_url.encode()).hexdigest()
+
     if cache_enabled and os.path.exists(cache_path):
         # 缓存命中，直接返回本地文件
         ext = os.path.splitext(cache_path)[1]
@@ -259,6 +269,7 @@ def img_proxy():
                          '.gif': 'image/gif', '.webp': 'image/webp'}
         response.content_type = content_types.get(ext, 'image/jpeg')
         response.headers['Cache-Control'] = 'public, max-age=86400'
+        response.headers['ETag'] = f'"{url_hash}"'
         response.headers['X-Cache'] = 'HIT'
         with open(cache_path, 'rb') as f:
             return f.read()
@@ -290,6 +301,7 @@ def img_proxy():
     content_type = r.headers.get('Content-Type', 'image/jpeg')
     response.content_type = content_type
     response.headers['Cache-Control'] = 'public, max-age=86400'
+    response.headers['ETag'] = f'"{url_hash}"'
     response.headers['X-Cache'] = 'MISS'
     return img_data
 
