@@ -49,11 +49,9 @@ def process_data(df):
     '''
     do all processing , like onehotencode tag string
     '''
-    X = df[['tags']]
-    y = df[['target']]
-
-    mlb = MultiLabelBinarizer()
-    X = mlb.fit_transform(X.tags.values)
+    mlb = MultiLabelBinarizer(sparse_output=False)
+    X = mlb.fit_transform(df['tags'].values)
+    y = df['target'].values.ravel()
     dump_model(get_data_path(BINARIZER_PATH), mlb)
     return X, y
 
@@ -84,5 +82,5 @@ def prepare_predict_data():
     dicts = (as_dict(item) for item in unrated_items)
     df = pd.DataFrame(dicts, columns=['id', 'tags'])
     df.set_index('id', inplace=True)
-    X = mlb.transform(df.tags.values)
+    X = mlb.transform(df['tags'].values)
     return df.index.values, X

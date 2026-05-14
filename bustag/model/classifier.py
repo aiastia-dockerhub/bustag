@@ -1,8 +1,10 @@
 '''
 create classifier model and predict
+使用 LightGBM 梯度提升树替代 KNN，提升推荐精度
 '''
-from sklearn.metrics import f1_score, recall_score, accuracy_score, precision_score, confusion_matrix
-from sklearn.neighbors import KNeighborsClassifier
+import numpy as np
+from sklearn.metrics import f1_score, recall_score, precision_score, confusion_matrix
+from lightgbm import LGBMClassifier
 from bustag.model.prepare import prepare_data, prepare_predict_data
 from bustag.model.persist import load_model, dump_model
 from bustag.spider.db import RATE_TYPE, ItemRate
@@ -18,8 +20,25 @@ def load():
 
 
 def create_model():
-    knn = KNeighborsClassifier(n_neighbors=11)
-    return knn
+    '''
+    创建 LightGBM 分类器
+    针对小数据集（200~5000条）优化的默认参数
+    '''
+    model = LGBMClassifier(
+        n_estimators=100,       # 树的数量
+        max_depth=6,            # 树的最大深度，防止过拟合
+        learning_rate=0.1,      # 学习率
+        num_leaves=31,          # 叶子节点数
+        min_child_samples=20,   # 叶子节点最小样本数，小数据集防过拟合
+        subsample=0.8,          # 样本采样比例
+        colsample_bytree=0.8,   # 特征采样比例
+        reg_alpha=0.1,          # L1 正则化
+        reg_lambda=0.1,         # L2 正则化
+        random_state=42,
+        verbose=-1,             # 静默模式
+        n_jobs=1,               # 单线程，避免资源竞争
+    )
+    return model
 
 
 def predict(X_test):
@@ -36,7 +55,6 @@ def train():
         raise ValueError(f'训练数据不足, 无法训练模型. 需要{MIN_TRAIN_NUM}, 当前{total}')
 
     # 检查训练数据是否同时包含喜欢和不喜欢两个类别
-    import numpy as np
     unique_classes = np.unique(y_train)
     if len(unique_classes) < 2:
         raise ValueError(
@@ -47,21 +65,28 @@ def train():
     y_pred = model.predict(X_test)
     confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])
     scores = evaluate(confusion_mtx, y_test, y_pred)
+
+    # 记录特征重要性 Top 10
+    try:
+        importances = model.feature_importances_
+        top_indices = np.argsort(importances)[::-1][:10]
+        logger.info(f'Top 10 feature importances: {importances[top_indices]}')
+    except Exception:
+        pass
+
     models_data = (model, scores)
     dump_model(get_data_path(MODEL_FILE), models_data)
-    logger.info('new model trained')
+    logger.info('new LightGBM model trained')
     return models_data
 
 
 def evaluate(confusion_mtx, y_test, y_pred):
     tn, fp, fn, tp = confusion_mtx.ravel()
-    # accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     logger.info(f'tp: {tp}, fp: {fp}')
     logger.info(f'fn: {fn}, tn: {tn}')
-    # logger.info(f'accuracy_score: {accuracy}')
     logger.info(f'precision_score: {precision}')
     logger.info(f'recall_score: {recall}')
     logger.info(f'f1_score: {f1}')

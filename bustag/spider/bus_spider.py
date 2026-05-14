@@ -3,9 +3,10 @@
 使用 javbus-api 替代原有的 aspider 网站爬虫
 '''
 import time
+import requests
 from .api_client import get_movies, get_movie_detail, search_movies
 from .parser import parse_movie_detail
-from .db import save, Item
+from .db import save, Item, SkipItem
 from bustag.util import APP_CONFIG, logger
 
 MAXPAGE = 30
@@ -35,6 +36,11 @@ def fetch_and_save_movie(movie_id):
     Returns:
         bool: 是否成功保存
     '''
+    # 检查是否在跳过列表中（之前 404 的番号）
+    if SkipItem.is_skipped(movie_id):
+        logger.debug(f'Movie {movie_id} is in skip list, skipping')
+        return False
+
     # 检查是否已存在
     exists = Item.get_by_fanhao(movie_id)
     if exists:
@@ -56,6 +62,15 @@ def fetch_and_save_movie(movie_id):
         logger.info(f'Saved movie: {movie_id}')
         print(f'item {movie_id} is processed')
         return True
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            # 404 说明该影片在 API 中不存在（已下架或番号无效）
+            # 加入跳过列表，防止反复重试
+            logger.warning(f'Movie {movie_id} not found (404), adding to skip list')
+            SkipItem.add_skip(movie_id, reason='not_found')
+        else:
+            logger.error(f'Failed to fetch/save movie {movie_id}: {e}')
+        return False
     except Exception as e:
         logger.error(f'Failed to fetch/save movie {movie_id}: {e}')
         return False

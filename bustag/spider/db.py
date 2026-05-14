@@ -213,6 +213,30 @@ class ItemRate(BaseModel):
         return item_rate
 
 
+class SkipItem(BaseModel):
+    '''
+    跳过列表（404 不存在的番号等）
+    与 Item 表分离，不影响前端显示
+    '''
+    fanhao = CharField(unique=True)
+    reason = CharField(default='not_found')
+    add_date = DateTimeField(default=datetime.datetime.now)
+
+    @staticmethod
+    def is_skipped(fanhao):
+        '''检查番号是否在跳过列表中'''
+        return SkipItem.get_or_none(SkipItem.fanhao == fanhao) is not None
+
+    @staticmethod
+    def add_skip(fanhao, reason='not_found'):
+        '''添加番号到跳过列表'''
+        try:
+            SkipItem.create(fanhao=fanhao, reason=reason)
+            logger.debug(f'Added to skip list: {fanhao}')
+        except IntegrityError:
+            logger.debug(f'SkipItem already exists: {fanhao}')
+
+
 class LocalItem(BaseModel):
     '''
     local item table
@@ -474,7 +498,7 @@ def get_tags_for_items(items_query):
 
 def init():
     db.connect(reuse_if_open=True)
-    db.create_tables([Item, Tag, ItemTag, ItemRate, LocalItem])
+    db.create_tables([Item, Tag, ItemTag, ItemRate, SkipItem, LocalItem])
 
 
 init()

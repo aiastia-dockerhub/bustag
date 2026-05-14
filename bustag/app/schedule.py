@@ -22,19 +22,23 @@ def download(fanhaos=None):
         fanhaos: list - 指定要下载的番号列表，为 None 则批量下载
     '''
     print('start download')
+    saved_count = 0
     if fanhaos:
         logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items')
-        bus_spider.download_by_fanhaos(fanhaos)
+        saved_count = bus_spider.download_by_fanhaos(fanhaos)
     else:
         pages = int(APP_CONFIG.get('download.count', 10))
-        bus_spider.download_movies(pages=pages)
+        saved_count = bus_spider.download_movies(pages=pages)
 
-    # 下载完成后尝试推荐
-    try:
-        import bustag.model.classifier as clf
-        clf.recommend()
-    except FileNotFoundError:
-        print('还没有训练好的模型, 无法推荐')
+    # 只有保存了新影片才运行推荐
+    if saved_count > 0:
+        try:
+            import bustag.model.classifier as clf
+            clf.recommend()
+        except FileNotFoundError:
+            print('还没有训练好的模型, 无法推荐')
+    else:
+        logger.info('没有新影片保存，跳过推荐')
 
 
 def start_scheduler():
