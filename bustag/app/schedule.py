@@ -22,19 +22,23 @@ def download(fanhaos=None, movie_type='mixed'):
         movie_type: str - 'normal'=有码, 'uncensored'=无码, 'mixed'=混合（自动判断）
     '''
     print('start download')
+    saved_count = 0
     if fanhaos:
         logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items, movie_type={movie_type}')
-        bus_spider.download_by_fanhaos(fanhaos, movie_type=movie_type)
+        saved_count = bus_spider.download_by_fanhaos(fanhaos, movie_type=movie_type)
     else:
         pages = int(APP_CONFIG.get('download.count', 10))
-        bus_spider.download_movies(pages=pages)
+        saved_count = bus_spider.download_movies(pages=pages)
 
-    # 下载完成后尝试推荐
-    try:
-        import bustag.model.classifier as clf
-        clf.recommend()
-    except FileNotFoundError:
-        print('还没有训练好的模型, 无法推荐')
+    # 只有保存了新影片才运行推荐
+    if saved_count > 0:
+        try:
+            import bustag.model.classifier as clf
+            clf.recommend()
+        except FileNotFoundError:
+            print('还没有训练好的模型, 无法推荐')
+    else:
+        logger.info('没有新影片保存，跳过推荐')
 
 
 def start_scheduler():
