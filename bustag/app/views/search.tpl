@@ -35,7 +35,7 @@
 % if defined('item') and item is not None:
   <div class="row py-3">
     <div class="col-12 col-md-4">
-      <img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">
+      <img class="img-fluid img-thumbnail coverimg" loading="lazy" src="/img_proxy?url={{item.cover_img_url}}">
     </div>
     <div class="col-12 col-md-8">
       <div class="small text-muted">id: {{item.id}}</div>
@@ -72,7 +72,7 @@
   % for item in query_items:
   <div class="row py-3">
     <div class="col-12 col-md-4">
-      <img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">
+      <img class="img-fluid img-thumbnail coverimg" loading="lazy" src="/img_proxy?url={{item.cover_img_url}}">
     </div>
     <div class="col-12 col-md-8">
       <div class="small text-muted">id: {{item.id}}</div>
@@ -106,7 +106,7 @@
   %for item in tag_items:
   <div class="row py-3">
     <div class="col-12 col-md-4">
-      <img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">
+      <img class="img-fluid img-thumbnail coverimg" loading="lazy" src="/img_proxy?url={{item.cover_img_url}}">
     </div>
     <div class="col-12 col-md-8">
       <div class="small text-muted">id: {{item.id}}</div>

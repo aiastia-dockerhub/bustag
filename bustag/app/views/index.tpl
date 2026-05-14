@@ -23,7 +23,7 @@
 <form id="form-{{i}}" action="/correct/{{item.fanhao}}?page={{curr_page}}&like={{like}}" method="post">
 	<div class="row py-3">
 		<div class="col-12 col-md-4">
-		<img class="img-fluid img-thumbnail coverimg" src="/img_proxy?url={{item.cover_img_url}}">
+		<img class="img-fluid img-thumbnail coverimg" loading="lazy" src="/img_proxy?url={{item.cover_img_url}}">
 		</div>
 
 			<div class="col-7 col-md-5">
