@@ -34,6 +34,7 @@ def create_model():
         colsample_bytree=0.8,   # 特征采样比例
         reg_alpha=0.1,          # L1 正则化
         reg_lambda=0.1,         # L2 正则化
+        class_weight='balanced', # 自动平衡喜欢/不喜欢样本权重
         random_state=42,
         verbose=-1,             # 静默模式
         n_jobs=1,               # 单线程，避免资源竞争

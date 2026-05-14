@@ -45,12 +45,19 @@ def as_dict(item):
     return d
 
 
+def _make_safe_columns(n):
+    '''生成安全列名 f_0, f_1, ... 避免 LightGBM JSON 特殊字符问题'''
+    return [f'f_{i}' for i in range(n)]
+
+
 def process_data(df):
     '''
     do all processing , like onehotencode tag string
     '''
     mlb = MultiLabelBinarizer(sparse_output=False)
-    X = mlb.fit_transform(df['tags'].values)
+    X_array = mlb.fit_transform(df['tags'].values)
+    columns = _make_safe_columns(X_array.shape[1])
+    X = pd.DataFrame(X_array, columns=columns)
     y = df['target'].values.ravel()
     dump_model(get_data_path(BINARIZER_PATH), mlb)
     return X, y
@@ -58,7 +65,7 @@ def process_data(df):
 
 def split_data(X, y):
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.25, random_state=42)
+        X, y, test_size=0.25, random_state=42, stratify=y)
     return (X_train, X_test, y_train, y_test)
 
 
@@ -82,5 +89,7 @@ def prepare_predict_data():
     dicts = (as_dict(item) for item in unrated_items)
     df = pd.DataFrame(dicts, columns=['id', 'tags'])
     df.set_index('id', inplace=True)
-    X = mlb.transform(df['tags'].values)
+    X_array = mlb.transform(df['tags'].values)
+    columns = _make_safe_columns(X_array.shape[1])
+    X = pd.DataFrame(X_array, columns=columns)
     return df.index.values, X
