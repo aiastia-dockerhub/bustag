@@ -1,6 +1,6 @@
 '''
 prepare data for model training
-增强特征工程：按标签类型分别编码 + 数值特征 + 发行时间特征
+增强特征工程：按标签类型分别编码 + 数值特征
 '''
 import pandas as pd
 import numpy as np
@@ -127,7 +127,7 @@ def process_data(df):
     '''
     增强特征处理：
     1. 按标签类型（genre/star/other）分别 multi-hot 编码
-    2. 添加数值特征：tag_count, genre_count, star_count, days_since_release
+    2. 添加数值特征：tag_count, genre_count, star_count, has_star
     3. 添加 series one-hot 编码
     '''
     feature_names = {}
@@ -216,16 +216,10 @@ def process_data(df):
     numeric_features.append(df['star_count'].values.astype(float))
     numeric_names.append('star_count')
 
-    # days_since_release: 发行天数（归一化到极小范围，降低对模型的权重影响）
-    days = df['days_since_release'].values.astype(float)
-    median_days = np.nanmedian(days)
-    days = np.nan_to_num(days, nan=median_days)
-    # 归一化到 [0, 0.01]，让树模型几乎不会选它做分裂
-    max_days = days.max()
-    if max_days > 0:
-        days = days / max_days * 0.01
-    numeric_features.append(days)
-    numeric_names.append('days_since_release')
+    # has_star: 是否有演员信息（二值）
+    has_star = (df['star_count'].values > 0).astype(float)
+    numeric_features.append(has_star)
+    numeric_names.append('has_star')
 
     numeric_array = np.column_stack(numeric_features)
     all_features.append(numeric_array)
@@ -249,8 +243,6 @@ def process_data(df):
         'star': star_mlb,
         'other': other_mlb,
         'series': series_mlb,
-        'median_days': median_days,
-        'max_days': max_days if max_days > 0 else 1,
         'frequent_series': list(frequent_series) if series_encoded.shape[1] > 0 else [],
     }
     dump_model(get_data_path(BINARIZER_PATH), binarizers)
@@ -291,7 +283,6 @@ def prepare_predict_data():
     star_mlb = binarizers['star']
     other_mlb = binarizers['other']
     series_mlb = binarizers['series']
-    median_days = binarizers['median_days']
     frequent_series = set(binarizers.get('frequent_series', []))
 
     dicts = [as_dict(item) for item in unrated_items]
@@ -333,13 +324,9 @@ def prepare_predict_data():
     numeric_features.append(df['genre_count'].values.astype(float))
     numeric_features.append(df['star_count'].values.astype(float))
 
-    # days_since_release: 使用训练集的 max_days 归一化（与训练一致）
-    days = df['days_since_release'].values.astype(float)
-    days = np.nan_to_num(days, nan=median_days)
-    max_days = binarizers.get('max_days', days.max())
-    if max_days > 0:
-        days = days / max_days * 0.01
-    numeric_features.append(days)
+    # has_star: 是否有演员信息（二值）
+    has_star = (df['star_count'].values > 0).astype(float)
+    numeric_features.append(has_star)
 
     numeric_array = np.column_stack(numeric_features)
     all_features.append(numeric_array)
