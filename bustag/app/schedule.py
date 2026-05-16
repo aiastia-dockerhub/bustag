@@ -37,6 +37,8 @@ def download(fanhaos=None, movie_type='mixed'):
             clf.recommend()
         except FileNotFoundError:
             print('还没有训练好的模型, 无法推荐')
+        except (KeyError, AttributeError) as e:
+            print(f'模型版本不兼容，请重新训练模型。错误: {e}')
     else:
         logger.info('没有新影片保存，跳过推荐')
 
