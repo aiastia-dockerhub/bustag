@@ -1,4 +1,4 @@
-% rebase('base.tpl', title='其他', path=path)
+% rebase('base.tpl', title='模型管理', path=path)
 
 <div class="container">
  <div class="row py-3">
@@ -27,10 +27,29 @@
         % end
         % if model_scores is not None:
         <ul class="list-group list-group-flush">
-            <li class="list-group-item">准确率: {{model_scores['precision']}}</li>
-            <li class="list-group-item">覆盖率: {{model_scores['recall']}}</li>
-            <li class="list-group-item">综合评分(越高越好): {{model_scores['f1']}}</li>
+            <li class="list-group-item">准确率 (Precision): {{model_scores.get('precision', 'N/A')}}</li>
+            <li class="list-group-item">覆盖率 (Recall): {{model_scores.get('recall', 'N/A')}}</li>
+            <li class="list-group-item">综合评分 F1 (越高越好): {{model_scores.get('f1', 'N/A')}}</li>
+            % if 'auc' in model_scores:
+            <li class="list-group-item">AUC 区分度 (越接近1越好): {{model_scores['auc']}}</li>
+            % end
+            % if 'cv_f1_mean' in model_scores:
+            <li class="list-group-item">5折交叉验证 F1: {{model_scores['cv_f1_mean']}} ± {{model_scores['cv_f1_std']}}</li>
+            % end
         </ul>
+        % if 'top_features' in model_scores and model_scores['top_features']:
+        <div class="card-header mt-2">
+           <h6> Top 10 重要特征 </h6>
+        </div>
+        <ul class="list-group list-group-flush">
+            % for feat_name, feat_imp in model_scores['top_features']:
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{feat_name}}
+                <span class="badge badge-primary badge-pill">{{feat_imp}}</span>
+            </li>
+            % end
+        </ul>
+        % end
         % else:
         <div class="card-body">
            还没有训练过模型.
@@ -43,13 +62,25 @@
     <div class="card-header" id="headingTwo">
       <h2 class="mb-0">
         <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-
+          优化说明
         </button>
       </h2>
     </div>
     <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionExample">
       <div class="card-body">
-        Anim pariatur cliche reprehenderit, enim eiusmod high life accusamus terry richardson ad squid. 3 wolf moon officia aute, non cupidatat skateboard dolor brunch. Food truck quinoa nesciunt laborum eiusmod. Brunch 3 wolf moon tempor, sunt aliqua put a bird on it squid single-origin coffee nulla assumenda shoreditch et. Nihil anim keffiyeh helvetica, craft beer labore wes anderson cred nesciunt sapiente ea proident. Ad vegan excepteur butcher vice lomo. Leggings occaecat craft beer farm-to-table, raw denim aesthetic synth nesciunt you probably haven't heard of them accusamus labore sustainable VHS.
+        <h6>特征工程优化</h6>
+        <ul>
+            <li>按标签类型（genre/star/other）分别编码，而非混合编码</li>
+            <li>新增数值特征：标签数量、演员数量、发行天数</li>
+            <li>新增系列（番号前缀）特征</li>
+        </ul>
+        <h6>模型优化</h6>
+        <ul>
+            <li>LightGBM 梯度提升树，更多树 + 更低学习率</li>
+            <li>5折交叉验证评估模型稳定性</li>
+            <li>AUC 指标评估模型区分能力</li>
+            <li>概率阈值推荐（≥0.6 才推荐），减少误推荐</li>
+        </ul>
       </div>
     </div>
   </div>
