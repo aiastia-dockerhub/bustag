@@ -8,8 +8,9 @@ import html
 import numpy as np
 from sklearn.metrics import (
     f1_score, recall_score, precision_score, confusion_matrix,
-    roc_auc_score, cross_val_score
+    roc_auc_score
 )
+from sklearn.model_selection import cross_val_score
 from lightgbm import LGBMClassifier
 from bustag.model.prepare import prepare_data, prepare_predict_data
 from bustag.model.persist import load_model, dump_model
