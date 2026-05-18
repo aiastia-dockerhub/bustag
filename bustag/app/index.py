@@ -8,9 +8,7 @@ import hashlib
 import requests as req_lib
 from multiprocessing import freeze_support
 from bottle import route, run, template, static_file, request, response, redirect, hook
-from bustag.util import APP_CONFIG
-import bustag.model.classifier as clf
-from bustag.util import logger, get_cwd, get_now_time, get_data_path
+from bustag.util import APP_CONFIG, logger, get_cwd, get_now_time, get_data_path
 from bustag.spider.db import (get_items, get_local_items, RATE_TYPE, RATE_VALUE, ItemRate,
                               Item, LocalItem, DBError, db as dbconn)
 from bustag.spider import db
@@ -151,6 +149,7 @@ def correct(fanhao):
 
 @route('/model')
 def other_settings():
+    import bustag.model.classifier as clf
     try:
         _, model_scores = clf.load()
     except FileNotFoundError:
@@ -160,6 +159,7 @@ def other_settings():
 
 @route('/do-training')
 def do_training():
+    import bustag.model.classifier as clf
     error_msg = None
     model_scores = None
     try:
