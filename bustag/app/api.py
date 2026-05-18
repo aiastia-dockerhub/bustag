@@ -272,9 +272,8 @@ def api_local_fanhao():
 @route('/api/model')
 def api_model():
     """模型信息"""
-    import bustag.model.classifier as clf
-
     try:
+        import bustag.model.classifier as clf
         _, model_scores = clf.load()
     except (FileNotFoundError, Exception):
         model_scores = None
@@ -302,11 +301,10 @@ def api_model():
 @route('/api/do-training')
 def api_do_training():
     """训练模型"""
-    import bustag.model.classifier as clf
-
     error_msg = None
     model_scores = None
     try:
+        import bustag.model.classifier as clf
         _, model_scores = clf.train()
     except Exception as ex:
         error_msg = ' '.join(str(a) for a in ex.args) if ex.args else str(ex)
