@@ -41,10 +41,10 @@
                 <template v-if="scores.top_features && scores.top_features.length > 0">
                   <div class="card-header mt-2"><h6>Top 10 重要特征</h6></div>
                   <ul class="list-group list-group-flush">
-                    <li v-for="[featName, featImp] in scores.top_features" :key="featName"
+                    <li v-for="feat in scores.top_features" :key="feat.name"
                         class="list-group-item d-flex justify-content-between align-items-center">
-                      {{ featName }}
-                      <span class="badge bg-primary rounded-pill">{{ featImp }}</span>
+                      {{ feat.name }}
+                      <span class="badge bg-primary rounded-pill">{{ feat.importance }}</span>
                     </li>
                   </ul>
                 </template>
