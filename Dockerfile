@@ -13,14 +13,32 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && find /install -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null \
     && find /install -type d -name 'tests' -exec rm -rf {} + 2>/dev/null \
+    && find /install -type d -name 'test' -exec rm -rf {} + 2>/dev/null \
     && find /install -type f -name '*.pyi' -delete 2>/dev/null \
     && find /install -type f -name '*.pyx' -delete 2>/dev/null \
+    && find /install -type f -name '*.c' -delete 2>/dev/null \
+    && find /install -type f -name '*.pxd' -delete 2>/dev/null \
+    && find /install -type f -name '*.rst' -delete 2>/dev/null \
+    && find /install -type f -name '*.md' -delete 2>/dev/null \
+    && find /install -type f -name 'LICENSE*' -delete 2>/dev/null \
+    && find /install -type f -name 'COPYING*' -delete 2>/dev/null \
     && rm -rf /install/lib/python3.11/site-packages/pip* \
     && rm -rf /install/lib/python3.11/site-packages/pytest* \
     && rm -rf /install/lib/python3.11/site-packages/coverage* \
     && rm -rf /install/lib/python3.11/site-packages/numpy/doc \
+    && rm -rf /install/lib/python3.11/site-packages/numpy/tests \
     && rm -rf /install/lib/python3.11/site-packages/scipy/doc \
-    && rm -rf /install/lib/python3.11/site-packages/sklearn/datasets
+    && rm -rf /install/lib/python3.11/site-packages/scipy/tests \
+    && rm -rf /install/lib/python3.11/site-packages/scipy/_lib/doccer.py \
+    && rm -rf /install/lib/python3.11/site-packages/sklearn/datasets \
+    && rm -rf /install/lib/python3.11/site-packages/sklearn/tests \
+    && rm -rf /install/lib/python3.11/site-packages/pandas/tests \
+    && rm -rf /install/lib/python3.11/site-packages/pandas/stubs \
+    && rm -rf /install/lib/python3.11/site-packages/pandas/_testing \
+    && rm -rf /install/lib/python3.11/site-packages/lightgbm/examples \
+    && rm -rf /install/lib/python3.11/site-packages/lightgbm/tests \
+    && rm -rf /install/lib/python3.11/site-packages/category_encoders/tests \
+    && find /install -type d -empty -delete 2>/dev/null
 
 # ===== Stage 3: Release =====
 FROM python:3.11-slim AS release
