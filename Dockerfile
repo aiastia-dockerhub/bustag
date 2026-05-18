@@ -34,7 +34,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/log/nginx /var/cache/nginx
+    && rm -rf /var/cache/nginx \
+    && mkdir -p /var/log/nginx /run/nginx \
+    && touch /var/log/nginx/error.log /var/log/nginx/access.log
 
 # Copy ONLY the node binary (not npm or node_modules - Nuxt .output is self-contained)
 COPY --from=frontend-build /usr/local/bin/node /usr/local/bin/node
