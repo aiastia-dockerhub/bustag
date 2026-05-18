@@ -276,7 +276,7 @@ def api_model():
 
     try:
         _, model_scores = clf.load()
-    except FileNotFoundError:
+    except (FileNotFoundError, Exception):
         model_scores = None
 
     result = {'model_scores': None}
@@ -286,7 +286,15 @@ def api_model():
             'precision': model_scores.get('precision', None),
             'recall': model_scores.get('recall', None),
             'f1': model_scores.get('f1', None),
+            'auc': model_scores.get('auc', None),
+            'cv_f1_mean': model_scores.get('cv_f1_mean', None),
+            'cv_f1_std': model_scores.get('cv_f1_std', None),
         }
+        top_features = model_scores.get('top_features', None)
+        if top_features:
+            result['model_scores']['top_features'] = [
+                {'name': name, 'importance': imp} for name, imp in top_features
+            ]
 
     return _json_response(result)
 
@@ -300,8 +308,8 @@ def api_do_training():
     model_scores = None
     try:
         _, model_scores = clf.train()
-    except ValueError as ex:
-        error_msg = ' '.join(ex.args)
+    except Exception as ex:
+        error_msg = ' '.join(str(a) for a in ex.args) if ex.args else str(ex)
 
     result = {'error_msg': error_msg, 'model_scores': None}
     if model_scores:
@@ -310,7 +318,15 @@ def api_do_training():
             'precision': model_scores.get('precision', None),
             'recall': model_scores.get('recall', None),
             'f1': model_scores.get('f1', None),
+            'auc': model_scores.get('auc', None),
+            'cv_f1_mean': model_scores.get('cv_f1_mean', None),
+            'cv_f1_std': model_scores.get('cv_f1_std', None),
         }
+        top_features = model_scores.get('top_features', None)
+        if top_features:
+            result['model_scores']['top_features'] = [
+                {'name': name, 'importance': imp} for name, imp in top_features
+            ]
 
     return _json_response(result)
 
