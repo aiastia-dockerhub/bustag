@@ -4,7 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ ./
-RUN NUXT_TELEMETRY_DISABLED=1 npm run generate
+RUN NUXT_TELEMETRY_DISABLED=1 npm run build
 
 # ===== Stage 2: Build Python Backend =====
 FROM python:3.11-slim AS base
@@ -28,12 +28,17 @@ FROM python:3.11-slim AS release
 
 WORKDIR /app
 
-# Install nginx + supervisor
+# Install nginx + supervisor + Node.js (for Nuxt SSR server)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js runtime for Nuxt SSR
+COPY --from=node:20-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:20-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 # Copy installed Python packages
 COPY --from=build /install /usr/local
@@ -46,8 +51,8 @@ COPY setup.py .
 # Create data directory and nginx cache directory
 RUN mkdir -p /app/data /tmp/nginx_img_cache
 
-# Copy Nuxt frontend static output
-COPY --from=frontend-build /app/frontend/.output/public /usr/share/nginx/html
+# Copy Nuxt SSR build output
+COPY --from=frontend-build /app/frontend/.output /app/frontend/.output
 
 # Copy nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/default
