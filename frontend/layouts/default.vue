@@ -48,17 +48,12 @@
       <NuxtPage @message="globalMsg = $event" />
     </main>
 
-    <!-- 图片放大模态框 -->
-    <div class="modal fade" id="imageModal" tabindex="-1">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0">
-          <div class="modal-body p-0 position-relative">
-            <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white rounded-circle p-2" data-bs-dismiss="modal" style="z-index:1"></button>
-            <img id="modalImage" class="imagepreview" />
-          </div>
-        </div>
+    <!-- 图片放大模态框（纯 Vue，不依赖 Bootstrap JS） -->
+    <ClientOnly>
+      <div v-if="modalUrl" class="img-modal-overlay" @click="hideImage">
+        <img :src="modalUrl" alt="preview" />
       </div>
-    </div>
+    </ClientOnly>
 
     <!-- 页脚 -->
     <footer class="py-3 mt-4">
@@ -82,4 +77,5 @@
 const globalMsg = ref('')
 const config = useRuntimeConfig()
 const version = config.public.appVersion || 'dev'
+const { modalUrl, hideImage } = useImageModal()
 </script>

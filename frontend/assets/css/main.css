@@ -99,9 +99,26 @@ body {
 }
 
 /* ===== 图片放大模态框 ===== */
-.imagepreview {
-  width: 100%;
+.img-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: fadeIn 0.15s ease;
+}
+.img-modal-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
   border-radius: 8px;
+  object-fit: contain;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ===== 页脚 ===== */

@@ -27,7 +27,7 @@
     <div v-if="item" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-5 col-md-4 col-lg-3">
-          <img class="img-fluid coverimg w-100" :src="imgProxyUrl(item.cover_img_url)"
+          <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
                @click="showImg(item.cover_img_url)" alt="cover" />
         </div>
         <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">
@@ -60,7 +60,7 @@
       <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
         <div class="row g-3">
           <div class="col-12 col-sm-5 col-md-4 col-lg-3">
-            <img class="img-fluid coverimg w-100" :src="imgProxyUrl(tItem.cover_img_url)"
+            <img class="img-fluid coverimg" :src="imgProxyUrl(tItem.cover_img_url)"
                  @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
           </div>
           <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">

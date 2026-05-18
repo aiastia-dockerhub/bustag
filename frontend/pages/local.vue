@@ -15,7 +15,7 @@
     <div v-for="localItem in items" :key="localItem.id" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-5 col-md-4 col-lg-3">
-          <img class="img-fluid coverimg w-100" :src="imgProxyUrl(localItem.item.cover_img_url)"
+          <img class="img-fluid coverimg" :src="imgProxyUrl(localItem.item.cover_img_url)"
                @click="showImg(localItem.item.cover_img_url)" alt="cover" loading="lazy" />
         </div>
         <div class="col-12 col-sm-7 col-md-5 col-lg-6 d-flex flex-column">
