@@ -1,86 +1,83 @@
 <template>
   <div class="container">
-    <!-- 番号搜索 -->
-    <div class="row py-3">
-      <div class="col-12">
-        <form @submit.prevent="doSearch" class="form-inline justify-content-center">
-          <div class="input-group" style="max-width: 400px;">
-            <input class="form-control" v-model="query" placeholder="输入番号搜索，如 SSIS-001" />
-            <div class="input-group-append">
-              <button class="btn btn-primary" type="submit">搜索</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 标签搜索 -->
-    <div class="row py-2">
-      <div class="col-12 text-center">
-        <form @submit.prevent="doTagSearch" class="form-inline justify-content-center">
-          <div class="input-group" style="max-width: 400px;">
-            <select class="form-control" v-model="currentTagId">
+    <!-- 搜索区域 -->
+    <div class="card-item mt-3">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-5">
+          <label class="form-label small fw-bold">🔍 番号搜索</label>
+          <form @submit.prevent="doSearch" class="input-group">
+            <input class="form-control search-input" v-model="query" placeholder="输入番号，如 SSIS-001" />
+            <button class="btn btn-primary" type="submit">搜索</button>
+          </form>
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small fw-bold">🏷️ 标签搜索</label>
+          <form @submit.prevent="doTagSearch" class="input-group">
+            <select class="form-select" v-model="currentTagId">
               <option value="">-- 选择标签类型 --</option>
               <option v-for="tag in genreTags" :key="tag.id" :value="tag.id">{{ tag.value }}</option>
             </select>
-            <div class="input-group-append">
-              <button class="btn btn-secondary" type="submit">按标签搜索</button>
-            </div>
-          </div>
-        </form>
+            <button class="btn btn-outline-secondary" type="submit">搜索</button>
+          </form>
+        </div>
       </div>
     </div>
 
     <!-- 番号搜索结果 -->
-    <div v-if="item" class="row py-3 card-item">
-      <div class="col-12 col-md-4">
-        <img class="img-fluid img-thumbnail coverimg" :src="imgProxyUrl(item.cover_img_url)"
-             @click="showImg(item.cover_img_url)" alt="cover" />
-      </div>
-      <div class="col-12 col-md-8">
-        <h5>{{ item.fanhao }}</h5>
-        <a :href="item.url" target="_blank">{{ item.title }}</a>
-        <div class="small text-muted mt-2">发行日期: {{ item.release_date }}</div>
-        <div class="small text-muted">添加日期: {{ item.add_date }}</div>
-        <div class="mt-2">
-          <span v-for="t in (item.tags_dict?.genre || [])" :key="t" class="badge bg-primary me-1">{{ t }}</span>
+    <div v-if="item" class="card-item">
+      <div class="row g-3">
+        <div class="col-12 col-sm-5 col-md-4 col-lg-3">
+          <img class="img-fluid coverimg w-100" :src="imgProxyUrl(item.cover_img_url)"
+               @click="showImg(item.cover_img_url)" alt="cover" style="aspect-ratio: 2/3; object-fit: cover;" />
         </div>
-        <div class="mt-1">
-          <span v-for="t in (item.tags_dict?.star || [])" :key="t" class="badge bg-warning text-dark me-1">{{ t }}</span>
+        <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">
+          <h5 class="mb-1 fw-bold">{{ item.fanhao }}</h5>
+          <a :href="item.url" target="_blank" class="text-decoration-none small mb-2">{{ item.title || '' }}</a>
+          <div class="small text-muted mb-1">
+            <span class="me-3">📅 发行: {{ item.release_date || '-' }}</span>
+            <span>📥 添加: {{ item.add_date || '-' }}</span>
+          </div>
+          <div class="mt-1" v-if="item.tags_dict?.genre?.length">
+            <span v-for="t in item.tags_dict.genre" :key="t" class="badge bg-primary bg-opacity-75 badge-tag me-1 mb-1">{{ t }}</span>
+          </div>
+          <div class="mt-1" v-if="item.tags_dict?.star?.length">
+            <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 番号搜索无结果 -->
-    <div v-if="searched && !item && query && !currentTag" class="row py-3">
-      <div class="col-12 text-center">
-        <div class="alert alert-warning">未找到番号「{{ query }}」的相关信息</div>
-      </div>
+    <div v-if="searched && !item && query && !currentTag" class="text-center py-4">
+      <div class="alert alert-warning d-inline-block">未找到番号「{{ query }}」的相关信息</div>
     </div>
 
     <!-- 标签搜索结果 -->
     <template v-if="tagItems.length > 0">
-      <div class="row py-2">
-        <div class="col-12">
-          <h6>标签「{{ currentTag }}」共找到 {{ tagPageInfo?.total_items || 0 }} 条结果</h6>
-        </div>
+      <div class="py-2">
+        <h6 class="fw-bold">🏷️ 标签「{{ currentTag }}」共 {{ tagPageInfo?.total_items || 0 }} 条</h6>
       </div>
-      <div v-for="tItem in tagItems" :key="tItem.fanhao" class="row py-3 card-item">
-        <div class="col-12 col-md-4">
-          <img class="img-fluid img-thumbnail coverimg" :src="imgProxyUrl(tItem.cover_img_url)"
-               @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
-        </div>
-        <div class="col-12 col-md-8">
-          <div class="small text-muted">id: {{ tItem.id }}</div>
-          <div class="small text-muted">发行日期: {{ tItem.release_date }}</div>
-          <div class="small text-muted">添加日期: {{ tItem.add_date }}</div>
-          <h6>{{ tItem.fanhao }}</h6>
-          <a :href="tItem.url" target="_blank">{{ (tItem.title || '').substring(0, 30) }}</a>
-          <div class="mt-1">
-            <span v-for="t in (tItem.tags_dict?.genre || [])" :key="t" class="badge bg-primary me-1">{{ t }}</span>
+      <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
+        <div class="row g-3">
+          <div class="col-12 col-sm-5 col-md-4 col-lg-3">
+            <img class="img-fluid coverimg w-100" :src="imgProxyUrl(tItem.cover_img_url)"
+                 @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" style="aspect-ratio: 2/3; object-fit: cover;" />
           </div>
-          <div class="mt-1">
-            <span v-for="t in (tItem.tags_dict?.star || [])" :key="t" class="badge bg-warning text-dark me-1">{{ t }}</span>
+          <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">
+            <h6 class="mb-1 fw-bold">{{ tItem.fanhao }}</h6>
+            <a :href="tItem.url" target="_blank" class="text-decoration-none small mb-2 text-truncate d-inline-block" style="max-width: 100%;">
+              {{ tItem.title || '' }}
+            </a>
+            <div class="small text-muted mb-1">
+              <span class="me-3">📅 发行: {{ tItem.release_date || '-' }}</span>
+              <span>📥 添加: {{ tItem.add_date || '-' }}</span>
+            </div>
+            <div class="mt-1" v-if="tItem.tags_dict?.genre?.length">
+              <span v-for="t in tItem.tags_dict.genre" :key="t" class="badge bg-primary bg-opacity-75 badge-tag me-1 mb-1">{{ t }}</span>
+            </div>
+            <div class="mt-1" v-if="tItem.tags_dict?.star?.length">
+              <span v-for="t in tItem.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -88,10 +85,8 @@
     </template>
 
     <!-- 标签搜索无结果 -->
-    <div v-if="currentTag && tagItems.length === 0 && !loading" class="row py-3">
-      <div class="col-12 text-center">
-        <div class="alert alert-warning">未找到标签「{{ currentTag }}」的相关信息</div>
-      </div>
+    <div v-if="currentTag && tagItems.length === 0 && !loading" class="text-center py-4">
+      <div class="alert alert-warning d-inline-block">未找到标签「{{ currentTag }}」的相关信息</div>
     </div>
   </div>
 </template>
@@ -111,7 +106,6 @@ const searched = ref(false)
 
 const showImg = (url) => showImage(imgProxyUrl(url))
 
-// 加载标签列表（不触发搜索）
 const loadGenreTags = async () => {
   if (genreTags.value.length > 0) return
   try {
@@ -173,6 +167,5 @@ const goTagPage = async (page) => {
   }
 }
 
-// 页面挂载只加载标签列表
 onMounted(() => loadGenreTags())
 </script>

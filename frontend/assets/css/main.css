@@ -1,23 +1,163 @@
+/* ===== 全局 ===== */
 body {
-  background-color: #f8f9fa;
+  background-color: #f0f2f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
+
+/* ===== 导航栏 ===== */
+.navbar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.navbar-brand img {
+  height: 36px;
+}
+
+/* ===== 卡片列表项 ===== */
+.card-item {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: box-shadow 0.2s, transform 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.card-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* ===== 封面图 ===== */
 .coverimg {
   cursor: pointer;
+  border-radius: 8px;
+  transition: opacity 0.2s;
 }
-/* 导航栏字体加大，和旧版 Bootstrap 4 一致 */
-.navbar .nav-link {
-  font-size: 1.05rem;
-  padding: 0.5rem 1rem;
+
+.coverimg:hover {
+  opacity: 0.85;
 }
-.navbar-brand img {
-  height: 40px;
+
+/* ===== 标签 badge ===== */
+.badge-tag {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.25em 0.55em;
+  border-radius: 4px;
 }
-.card-item {
-  border-bottom: 1px solid #dee2e6;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+
+/* ===== 按钮 ===== */
+.btn {
+  border-radius: 6px;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.85rem;
+  transition: all 0.15s;
 }
-/* 图片放大模态框 */
+
+.btn-sm {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+/* ===== Tab ===== */
+.nav-tabs .nav-link {
+  border-radius: 6px 6px 0 0;
+  color: #6c757d;
+  font-weight: 500;
+  padding: 0.5rem 1.2rem;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+  color: #495057;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.nav-tabs .nav-link.active {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+/* ===== 分页 ===== */
+.pagination {
+  gap: 4px;
+}
+
+.pagination .page-link {
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* ===== 图片放大模态框 ===== */
 .imagepreview {
   width: 100%;
+  border-radius: 8px;
+}
+
+/* ===== 页脚 ===== */
+footer {
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+footer a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* ===== 模型页面 ===== */
+.accordion-button:not(.collapsed) {
+  background-color: #e7f1ff;
+  color: #0d6efd;
+}
+
+/* ===== 搜索框 ===== */
+.search-input {
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  padding: 0.6rem 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+/* ===== 卡片通用 ===== */
+.card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.card-header {
+  border-radius: 12px 12px 0 0 !important;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .card-item {
+    padding: 0.75rem;
+  }
+
+  .coverimg {
+    margin-bottom: 0.75rem;
+  }
 }

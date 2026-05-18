@@ -1,42 +1,38 @@
 <template>
   <div class="container">
-    <div class="row py-3">
-      <div class="col-12">
-        <ul class="nav nav-tabs">
-          <li class="nav-item">
-            <NuxtLink class="nav-link" to="/local">本地文件</NuxtLink>
-          </li>
-          <li class="nav-item">
-            <NuxtLink class="nav-link active" to="/local_fanhao">上传番号</NuxtLink>
-          </li>
-        </ul>
-      </div>
+    <div class="d-flex align-items-center py-3 border-bottom mb-3">
+      <ul class="nav nav-tabs border-0 mb-0">
+        <li class="nav-item">
+          <NuxtLink class="nav-link" to="/local">📂 本地文件</NuxtLink>
+        </li>
+        <li class="nav-item">
+          <NuxtLink class="nav-link active" to="/local_fanhao">📤 上传番号</NuxtLink>
+        </li>
+      </ul>
     </div>
 
-    <div class="row py-3">
-      <div class="col-12">
-        <div v-if="msg" class="alert alert-success">{{ msg }}</div>
-        <form @submit.prevent="submitFanhao">
-          <div class="mb-3">
-            <label class="form-label">番号列表（每行一个）</label>
-            <textarea class="form-control" v-model="fanhao" rows="10" placeholder="SSIS-406&#10;ABP-123"></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">影片类型</label>
-            <select class="form-select" v-model="movieType">
-              <option value="mixed">混合（自动判断）</option>
-              <option value="normal">有码</option>
-              <option value="uncensored">无码</option>
-            </select>
-            <div class="form-text">选择"混合"时，系统会自动通过搜索接口判断每个番号是有码还是无码</div>
-          </div>
-          <div class="mb-3 form-check">
-            <input type="checkbox" class="form-check-input" id="tagLike" v-model="tagLike" true-value="1" false-value="0">
-            <label class="form-check-label" for="tagLike">同时打标为喜欢</label>
-          </div>
-          <button type="submit" class="btn btn-primary">提交</button>
-        </form>
-      </div>
+    <div class="card-item">
+      <div v-if="msg" class="alert alert-success mb-3">✅ {{ msg }}</div>
+      <form @submit.prevent="submitFanhao">
+        <div class="mb-3">
+          <label class="form-label fw-bold">番号列表（每行一个）</label>
+          <textarea class="form-control" v-model="fanhao" rows="10" placeholder="SSIS-406&#10;ABP-123" style="border-radius: 8px;"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">影片类型</label>
+          <select class="form-select" v-model="movieType" style="border-radius: 8px;">
+            <option value="mixed">混合（自动判断）</option>
+            <option value="normal">有码</option>
+            <option value="uncensored">无码</option>
+          </select>
+          <div class="form-text">选择"混合"时，系统会自动通过搜索接口判断每个番号是有码还是无码</div>
+        </div>
+        <div class="mb-3 form-check">
+          <input type="checkbox" class="form-check-input" id="tagLike" v-model="tagLike" true-value="1" false-value="0">
+          <label class="form-check-label" for="tagLike">同时打标为喜欢</label>
+        </div>
+        <button type="submit" class="btn btn-primary">📤 提交</button>
+      </form>
     </div>
   </div>
 </template>
