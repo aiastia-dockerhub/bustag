@@ -482,6 +482,53 @@ def api_local_play(id):
     redirect(file_path)
 
 
+@route('/api/clear-recommend', method='POST')
+def api_clear_recommend():
+    """清理所有系统推荐记录（rate_type=2），保留用户打标"""
+    from bustag.spider.db import ItemRate, RATE_TYPE
+    try:
+        count = ItemRate.delete().where(
+            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
+        ).execute()
+        _api_cache.clear()
+        return _json_response({'success': True, 'deleted': count})
+    except Exception as e:
+        return _json_response({'success': False, 'error': str(e)})
+
+
+@route('/api/re-recommend', method='POST')
+def api_re_recommend():
+    """清理旧推荐 + 重新推荐"""
+    from bustag.spider.db import ItemRate, RATE_TYPE
+    import bustag.model.classifier as clf
+
+    # 1. 清理旧推荐
+    try:
+        deleted = ItemRate.delete().where(
+            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
+        ).execute()
+    except Exception as e:
+        return _json_response({'success': False, 'error': f'清理失败: {e}'})
+
+    # 2. 重新推荐
+    try:
+        total, recommended = clf.recommend()
+        _api_cache.clear()
+        return _json_response({
+            'success': True,
+            'deleted': deleted,
+            'total': total,
+            'recommended': recommended,
+        })
+    except Exception as e:
+        _api_cache.clear()
+        return _json_response({
+            'success': False,
+            'error': f'推荐失败: {e}',
+            'deleted': deleted,
+        })
+
+
 @route('/api/version')
 def api_version():
     """版本信息"""
