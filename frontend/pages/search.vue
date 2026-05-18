@@ -26,7 +26,7 @@
     <!-- 番号搜索结果 -->
     <div v-if="item" class="card-item">
       <div class="row g-3">
-        <div class="col-12 col-sm-5 col-md-4 col-lg-3">
+        <div class="col-12 col-sm-6 col-md-5 col-lg-4">
           <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
                @click="showImg(item.cover_img_url)" alt="cover" />
         </div>
@@ -59,7 +59,7 @@
       </div>
       <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
         <div class="row g-3">
-          <div class="col-12 col-sm-5 col-md-4 col-lg-3">
+          <div class="col-12 col-sm-6 col-md-5 col-lg-4">
             <img class="img-fluid coverimg" :src="imgProxyUrl(tItem.cover_img_url)"
                  @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
           </div>

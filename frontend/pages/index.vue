@@ -22,11 +22,11 @@
     <!-- 列表 -->
     <div v-for="item in items" :key="item.fanhao" class="card-item">
       <div class="row g-3">
-        <div class="col-12 col-sm-5 col-md-4 col-lg-3">
+        <div class="col-12 col-sm-6 col-md-5 col-lg-4">
           <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
                @click="showImg(item.cover_img_url)" alt="cover" loading="lazy" />
         </div>
-        <div class="col-12 col-sm-7 col-md-5 col-lg-6 d-flex flex-column">
+        <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ item.fanhao }}</h6>
           <a :href="item.url" target="_blank" class="text-decoration-none small mb-2 text-truncate d-inline-block" style="max-width: 100%;">
             {{ item.title || '' }}
