@@ -51,60 +51,51 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, inject } from 'vue'
-import { getTagit, postTag, imgProxyUrl } from '../assets/api.js'
-import Pagination from '../components/Pagination.vue'
+<script setup>
+const { showImage } = useImageModal()
 
-export default {
-  components: { Pagination },
-  setup() {
-    const items = ref([])
-    const pageInfo = ref(null)
-    const like = ref(null)
-    const movieTypes = ref(['normal'])
-    const movieType = ref('normal')
-    const showImage = inject('showImage')
+const items = ref([])
+const pageInfo = ref(null)
+const like = ref(null)
+const movieTypes = ref(['normal'])
+const movieType = ref('normal')
 
-    const showImg = (url) => showImage(imgProxyUrl(url))
+const showImg = (url) => showImage(imgProxyUrl(url))
 
-    const loadData = async (page = 1) => {
-      try {
-        const params = { page, type: movieType.value }
-        if (like.value !== null) params.like = like.value
-        const res = await getTagit(params)
-        items.value = res.data.items
-        pageInfo.value = res.data.page_info
-        movieTypes.value = res.data.movie_types
-        movieType.value = res.data.movie_type
-      } catch (e) {
-        console.error('加载打标失败:', e)
-      }
-    }
-
-    const switchTab = (lk) => {
-      like.value = lk
-      loadData(1)
-    }
-
-    const onTypeChange = () => {
-      loadData(1)
-    }
-
-    const goPage = (page) => loadData(page)
-
-    const tag = async (fanhao, rateValue) => {
-      try {
-        await postTag(fanhao, { rate_value: rateValue })
-        loadData(pageInfo.value?.current_page || 1)
-      } catch (e) {
-        console.error('打标失败:', e)
-      }
-    }
-
-    onMounted(() => loadData())
-
-    return { items, pageInfo, like, movieTypes, movieType, imgProxyUrl, showImg, switchTab, onTypeChange, goPage, tag }
+const loadData = async (page = 1) => {
+  try {
+    const params = { page, type: movieType.value }
+    if (like.value !== null) params.like = like.value
+    const res = await $fetch('/api/tagit', { params })
+    items.value = res.items
+    pageInfo.value = res.page_info
+    movieTypes.value = res.movie_types
+    movieType.value = res.movie_type
+  } catch (e) {
+    console.error('加载打标失败:', e)
   }
 }
+
+const switchTab = (lk) => {
+  like.value = lk
+  loadData(1)
+}
+
+const onTypeChange = () => loadData(1)
+
+const goPage = (page) => loadData(page)
+
+const tag = async (fanhao, rateValue) => {
+  try {
+    await $fetch(`/api/tag/${fanhao}`, {
+      method: 'POST',
+      body: { rate_value: rateValue },
+    })
+    loadData(pageInfo.value?.current_page || 1)
+  } catch (e) {
+    console.error('打标失败:', e)
+  }
+}
+
+onMounted(() => loadData())
 </script>

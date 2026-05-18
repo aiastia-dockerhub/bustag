@@ -4,10 +4,10 @@
       <div class="col-12">
         <ul class="nav nav-tabs">
           <li class="nav-item">
-            <router-link class="nav-link" to="/local">本地文件</router-link>
+            <NuxtLink class="nav-link" to="/local">本地文件</NuxtLink>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link active" to="/local_fanhao">上传番号</router-link>
+            <NuxtLink class="nav-link active" to="/local_fanhao">上传番号</NuxtLink>
           </li>
         </ul>
       </div>
@@ -41,33 +41,27 @@
   </div>
 </template>
 
-<script>
-import { ref } from 'vue'
-import { postLocalFanhao } from '../assets/api.js'
+<script setup>
+const fanhao = ref('')
+const tagLike = ref('0')
+const movieType = ref('mixed')
+const msg = ref('')
 
-export default {
-  setup() {
-    const fanhao = ref('')
-    const tagLike = ref('0')
-    const movieType = ref('mixed')
-    const msg = ref('')
-
-    const submitFanhao = async () => {
-      if (!fanhao.value.trim()) return
-      try {
-        const res = await postLocalFanhao({
-          fanhao: fanhao.value,
-          tag_like: tagLike.value === '1',
-          movie_type: movieType.value
-        })
-        msg.value = res.data.msg
-        fanhao.value = ''
-      } catch (e) {
-        msg.value = '提交失败: ' + e.message
-      }
-    }
-
-    return { fanhao, tagLike, movieType, msg, submitFanhao }
+const submitFanhao = async () => {
+  if (!fanhao.value.trim()) return
+  try {
+    const res = await $fetch('/api/local_fanhao', {
+      method: 'POST',
+      body: {
+        fanhao: fanhao.value,
+        tag_like: tagLike.value === '1',
+        movie_type: movieType.value,
+      },
+    })
+    msg.value = res.msg
+    fanhao.value = ''
+  } catch (e) {
+    msg.value = '提交失败: ' + e.message
   }
 }
 </script>

@@ -3,31 +3,31 @@
     <!-- 导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container">
-        <router-link class="navbar-brand" to="/">
+        <NuxtLink class="navbar-brand" to="/">
           <img src="/logo.png" alt="Bustag" height="40" />
-        </router-link>
+        </NuxtLink>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav">
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/' }" to="/">推荐</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/' }" to="/">推荐</NuxtLink>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/tagit' }" to="/tagit">打标</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/tagit' }" to="/tagit">打标</NuxtLink>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/local' }" to="/local">本地</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/local' }" to="/local">本地</NuxtLink>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/model' }" to="/model">模型</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/model' }" to="/model">模型</NuxtLink>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/load_db' }" to="/load_db">数据</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/load_db' }" to="/load_db">数据</NuxtLink>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" :class="{ active: $route.path === '/search' }" to="/search">搜索</router-link>
+              <NuxtLink class="nav-link" :class="{ active: $route.path === '/search' }" to="/search">搜索</NuxtLink>
             </li>
           </ul>
         </div>
@@ -46,12 +46,8 @@
       </div>
     </div>
 
-    <!-- 页面内容（keep-alive 缓存页面，切换不重新加载） -->
-    <router-view v-slot="{ Component }">
-      <keep-alive>
-        <component :is="Component" @message="globalMsg = $event" />
-      </keep-alive>
-    </router-view>
+    <!-- 页面内容 -->
+    <NuxtPage @message="globalMsg = $event" />
 
     <!-- 图片放大模态框 -->
     <div class="modal fade" id="imageModal" tabindex="-1">
@@ -59,7 +55,7 @@
         <div class="modal-content">
           <div class="modal-body">
             <button type="button" class="btn-close position-absolute top-0 end-0 m-2" data-bs-dismiss="modal"></button>
-            <img :src="modalImageUrl" class="imagepreview" />
+            <img id="modalImage" class="imagepreview" />
           </div>
         </div>
       </div>
@@ -75,7 +71,7 @@
           <p class="mb-0">
             Developed by 凤凰山@2019
             <a href="https://github.com/gxtrobot/bustag" target="_blank">github</a>
-            | 2026 by Vue
+            | 2026 by Nuxt
           </p>
         </div>
       </div>
@@ -83,26 +79,9 @@
   </div>
 </template>
 
-<script>
-import { ref, provide } from 'vue'
-
-// 版本号由 vite 构建时注入 git commit hash
-const version = __APP_VERSION__
-
-export default {
-  setup() {
-    const globalMsg = ref('')
-    const modalImageUrl = ref('')
-
-    // 提供图片放大方法给子组件
-    const showImage = (url) => {
-      modalImageUrl.value = url
-      const modal = new bootstrap.Modal(document.getElementById('imageModal'))
-      modal.show()
-    }
-    provide('showImage', showImage)
-
-    return { version, globalMsg, modalImageUrl }
-  }
-}
+<script setup>
+const globalMsg = ref('')
+// 版本号：优先用运行时配置，fallback 到 'dev'
+const config = useRuntimeConfig()
+const version = config.public.appVersion || 'dev'
 </script>

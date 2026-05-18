@@ -66,6 +66,8 @@ data/uploaded.db
 # frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.nuxt/
+frontend/.output/
 frontend/package-lock.json
 data/bus.db
 data/bus.db

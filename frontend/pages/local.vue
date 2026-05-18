@@ -4,10 +4,10 @@
       <div class="col-12">
         <ul class="nav nav-tabs">
           <li class="nav-item">
-            <router-link class="nav-link active" to="/local">本地文件</router-link>
+            <NuxtLink class="nav-link active" to="/local">本地文件</NuxtLink>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link" to="/local_fanhao">上传番号</router-link>
+            <NuxtLink class="nav-link" to="/local_fanhao">上传番号</NuxtLink>
           </li>
         </ul>
       </div>
@@ -40,35 +40,25 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, inject } from 'vue'
-import { getLocal, imgProxyUrl } from '../assets/api.js'
-import Pagination from '../components/Pagination.vue'
+<script setup>
+const { showImage } = useImageModal()
 
-export default {
-  components: { Pagination },
-  setup() {
-    const items = ref([])
-    const pageInfo = ref(null)
-    const showImage = inject('showImage')
+const items = ref([])
+const pageInfo = ref(null)
 
-    const showImg = (url) => showImage(imgProxyUrl(url))
+const showImg = (url) => showImage(imgProxyUrl(url))
 
-    const loadData = async (page = 1) => {
-      try {
-        const res = await getLocal({ page })
-        items.value = res.data.items
-        pageInfo.value = res.data.page_info
-      } catch (e) {
-        console.error('加载本地文件失败:', e)
-      }
-    }
-
-    const goPage = (page) => loadData(page)
-
-    onMounted(() => loadData())
-
-    return { items, pageInfo, imgProxyUrl, showImg, goPage }
+const loadData = async (page = 1) => {
+  try {
+    const res = await $fetch('/api/local', { params: { page } })
+    items.value = res.items
+    pageInfo.value = res.page_info
+  } catch (e) {
+    console.error('加载本地文件失败:', e)
   }
 }
+
+const goPage = (page) => loadData(page)
+
+onMounted(() => loadData())
 </script>

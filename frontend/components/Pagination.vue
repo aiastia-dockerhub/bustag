@@ -20,14 +20,10 @@
   </div>
 </template>
 
-<script>
-export default {
-  props: ['pageInfo'],
-  emits: ['go-page'],
-  methods: {
-    goPage(page) {
-      this.$emit('go-page', Number(page))
-    }
-  }
-}
+<script setup>
+defineProps({
+  pageInfo: Object,
+})
+const emit = defineEmits(['go-page'])
+const goPage = (page) => emit('go-page', Number(page))
 </script>

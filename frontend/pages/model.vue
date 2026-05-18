@@ -28,45 +28,36 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue'
-import { getModel, doTraining } from '../assets/api.js'
+<script setup>
+const scores = ref(null)
+const error = ref('')
+const training = ref(false)
 
-export default {
-  setup() {
-    const scores = ref(null)
-    const error = ref('')
-    const training = ref(false)
-
-    const loadModel = async () => {
-      try {
-        const res = await getModel()
-        scores.value = res.data.model_scores
-      } catch (e) {
-        console.error('加载模型失败:', e)
-      }
-    }
-
-    const trainModel = async () => {
-      training.value = true
-      error.value = ''
-      try {
-        const res = await doTraining()
-        if (res.data.error_msg) {
-          error.value = res.data.error_msg
-        } else {
-          scores.value = res.data.model_scores
-        }
-      } catch (e) {
-        error.value = '训练失败: ' + e.message
-      } finally {
-        training.value = false
-      }
-    }
-
-    onMounted(() => loadModel())
-
-    return { scores, error, training, trainModel }
+const loadModel = async () => {
+  try {
+    const res = await $fetch('/api/model')
+    scores.value = res.model_scores
+  } catch (e) {
+    console.error('加载模型失败:', e)
   }
 }
+
+const trainModel = async () => {
+  training.value = true
+  error.value = ''
+  try {
+    const res = await $fetch('/api/do-training', { timeout: 300000 })
+    if (res.error_msg) {
+      error.value = res.error_msg
+    } else {
+      scores.value = res.model_scores
+    }
+  } catch (e) {
+    error.value = '训练失败: ' + e.message
+  } finally {
+    training.value = false
+  }
+}
+
+onMounted(() => loadModel())
 </script>
