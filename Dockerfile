@@ -1,10 +1,10 @@
-# ===== Stage 1: Build Vue Frontend =====
+# ===== Stage 1: Build Nuxt Frontend =====
 FROM node:20-slim AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ ./
-RUN npm run build
+RUN NUXT_TELEMETRY_DISABLED=1 npm run generate
 
 # ===== Stage 2: Build Python Backend =====
 FROM python:3.11-slim AS base
@@ -46,8 +46,8 @@ COPY setup.py .
 # Create data directory and nginx cache directory
 RUN mkdir -p /app/data /tmp/nginx_img_cache
 
-# Copy Vue frontend build output
-COPY --from=frontend-build /app/frontend/dist /usr/share/nginx/html
+# Copy Nuxt frontend static output
+COPY --from=frontend-build /app/frontend/.output/public /usr/share/nginx/html
 
 # Copy nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/default

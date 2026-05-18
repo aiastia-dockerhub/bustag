@@ -35,6 +35,12 @@ export default defineNuxtConfig({
     },
   },
 
+  ssr: true,
+
+  nitro: {
+    preset: 'static',
+  },
+
   routeRules: {
     '/api/**': { proxy: 'http://localhost:8000/api/**' },
     '/img_proxy': { proxy: 'http://localhost:8000/img_proxy' },
