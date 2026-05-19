@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN NUXT_TELEMETRY_DISABLED=1 npm run build
 
 # ===== Stage 2: Build Python Dependencies =====
-FROM python:3.11-slim AS python-build
+FROM python:3.12-slim AS python-build
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
@@ -21,23 +21,23 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && find /install -type f -name '*.md' -delete 2>/dev/null \
     && find /install -type f -name 'LICENSE*' -delete 2>/dev/null \
     && find /install -type f -name 'COPYING*' -delete 2>/dev/null \
-    && rm -rf /install/lib/python3.11/site-packages/pip* \
-    && rm -rf /install/lib/python3.11/site-packages/pytest* \
-    && rm -rf /install/lib/python3.11/site-packages/coverage* \
-    && rm -rf /install/lib/python3.11/site-packages/numpy/doc \
-    && rm -rf /install/lib/python3.11/site-packages/numpy/tests \
-    && rm -rf /install/lib/python3.11/site-packages/scipy/doc \
-    && rm -rf /install/lib/python3.11/site-packages/scipy/tests \
-    && rm -rf /install/lib/python3.11/site-packages/sklearn/tests \
-    && rm -rf /install/lib/python3.11/site-packages/pandas/tests \
-    && rm -rf /install/lib/python3.11/site-packages/pandas/stubs \
-    && rm -rf /install/lib/python3.11/site-packages/lightgbm/examples \
-    && rm -rf /install/lib/python3.11/site-packages/lightgbm/tests \
-    && rm -rf /install/lib/python3.11/site-packages/category_encoders/tests \
+    && rm -rf /install/lib/python3.12/site-packages/pip* \
+    && rm -rf /install/lib/python3.12/site-packages/pytest* \
+    && rm -rf /install/lib/python3.12/site-packages/coverage* \
+    && rm -rf /install/lib/python3.12/site-packages/numpy/doc \
+    && rm -rf /install/lib/python3.12/site-packages/numpy/tests \
+    && rm -rf /install/lib/python3.12/site-packages/scipy/doc \
+    && rm -rf /install/lib/python3.12/site-packages/scipy/tests \
+    && rm -rf /install/lib/python3.12/site-packages/sklearn/tests \
+    && rm -rf /install/lib/python3.12/site-packages/pandas/tests \
+    && rm -rf /install/lib/python3.12/site-packages/pandas/stubs \
+    && rm -rf /install/lib/python3.12/site-packages/lightgbm/examples \
+    && rm -rf /install/lib/python3.12/site-packages/lightgbm/tests \
+    && rm -rf /install/lib/python3.12/site-packages/category_encoders/tests \
     && find /install -type d -empty -delete 2>/dev/null
 
 # ===== Stage 3: Release =====
-FROM python:3.11-slim AS release
+FROM python:3.12-slim AS release
 
 WORKDIR /app
 
