@@ -30,8 +30,14 @@
           <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
                @click="showImg(item.cover_img_url)" alt="cover" />
         </div>
-        <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">
-          <h5 class="mb-1 fw-bold">{{ item.fanhao }}</h5>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h5 class="mb-0 fw-bold">{{ item.fanhao }}</h5>
+            <span v-if="item.rate_type === 1 && item.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
+            <span v-else-if="item.rate_type === 1 && item.rate_value === 0" class="badge bg-danger">🔴 不喜欢</span>
+            <span v-else-if="item.rate_type === 2" class="badge bg-info">🤖 推荐</span>
+            <span v-else class="badge bg-secondary">⚪ 未打标</span>
+          </div>
           <a :href="item.url" target="_blank" class="text-decoration-none small mb-2">{{ item.title || '' }}</a>
           <div class="small text-muted mb-1">
             <span class="me-3">📅 发行: {{ item.release_date || '-' }}</span>
@@ -43,6 +49,16 @@
           <div class="mt-1" v-if="item.tags_dict?.star?.length">
             <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
           </div>
+        </div>
+        <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
+          <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(item.fanhao)"
+                  :disabled="!!magnetLoading[item.fanhao]">
+            <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
+            <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
+            <template v-else>🧲 磁力</template>
+          </button>
+          <button class="btn btn-outline-success btn-sm me-2" @click="tagItem(item.fanhao, 1, $event)">👍 喜欢</button>
+          <button class="btn btn-outline-danger btn-sm" @click="tagItem(item.fanhao, 0, $event)">👎 不喜欢</button>
         </div>
       </div>
     </div>
@@ -63,8 +79,14 @@
             <img class="img-fluid coverimg" :src="imgProxyUrl(tItem.cover_img_url)"
                  @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
           </div>
-          <div class="col-12 col-sm-7 col-md-8 col-lg-9 d-flex flex-column">
-            <h6 class="mb-1 fw-bold">{{ tItem.fanhao }}</h6>
+          <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <h6 class="mb-0 fw-bold">{{ tItem.fanhao }}</h6>
+              <span v-if="tItem.rate_type === 1 && tItem.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
+              <span v-else-if="tItem.rate_type === 1 && tItem.rate_value === 0" class="badge bg-danger">🔴 不喜欢</span>
+              <span v-else-if="tItem.rate_type === 2" class="badge bg-info">🤖 推荐</span>
+              <span v-else class="badge bg-secondary">⚪ 未打标</span>
+            </div>
             <a :href="tItem.url" target="_blank" class="text-decoration-none small mb-2 text-truncate d-inline-block" style="max-width: 100%;">
               {{ tItem.title || '' }}
             </a>
@@ -78,6 +100,16 @@
             <div class="mt-1" v-if="tItem.tags_dict?.star?.length">
               <span v-for="t in tItem.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
             </div>
+          </div>
+          <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
+            <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(tItem.fanhao)"
+                    :disabled="!!magnetLoading[tItem.fanhao]">
+              <template v-if="magnetLoading[tItem.fanhao] === 'done'">✅ 已复制</template>
+              <template v-else-if="magnetLoading[tItem.fanhao]">⏳</template>
+              <template v-else>🧲 磁力</template>
+            </button>
+            <button class="btn btn-outline-success btn-sm me-2" @click="tagItem(tItem.fanhao, 1, $event)">👍</button>
+            <button class="btn btn-outline-danger btn-sm" @click="tagItem(tItem.fanhao, 0, $event)">👎</button>
           </div>
         </div>
       </div>
@@ -93,6 +125,7 @@
 
 <script setup>
 const { showImage } = useImageModal()
+const { magnetLoading, copyMagnet } = useMagnet()
 
 const query = ref('')
 const item = ref(null)
@@ -164,6 +197,44 @@ const goTagPage = async (page) => {
     console.error('搜索失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const tagItem = async (fanhao, rateValue, event) => {
+  const btn = event?.target
+  if (btn) {
+    btn.disabled = true
+    btn.innerHTML = '⏳'
+  }
+  try {
+    await $fetch(`/api/tag/${fanhao}`, {
+      method: 'POST',
+      body: { rate_value: rateValue },
+    })
+    // 刷新当前搜索结果以更新打标状态
+    if (item.value && item.value.fanhao === fanhao && query.value) {
+      // 番号搜索结果：重新搜索
+      searched.value = true
+      loading.value = true
+      const res = await $fetch('/api/search', { params: { q: query.value, page: 1 } })
+      item.value = res.item
+      loading.value = false
+    } else if (currentTagId.value) {
+      // 标签搜索结果：刷新当前页
+      loading.value = true
+      const page = tagPageInfo.value?.current_page || 1
+      const res = await $fetch('/api/search', { params: { tag_id: currentTagId.value, page } })
+      tagItems.value = res.tag_items || []
+      tagPageInfo.value = res.page_info
+      loading.value = false
+    }
+  } catch (e) {
+    console.error('打标失败:', e)
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = rateValue === 1 ? '👍' : '👎'
+    }
+    alert('打标失败: ' + (e.data?.status || e.message))
   }
 }
 

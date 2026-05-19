@@ -47,6 +47,12 @@
           </div>
         </div>
         <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
+          <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(item.fanhao)"
+                  :disabled="!!magnetLoading[item.fanhao]">
+            <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
+            <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
+            <template v-else>🧲 磁力</template>
+          </button>
           <button class="btn btn-outline-success btn-sm me-2" @click="tag(item.fanhao, 1, $event)">👍 喜欢</button>
           <button class="btn btn-outline-danger btn-sm" @click="tag(item.fanhao, 0, $event)">👎 不喜欢</button>
         </div>
@@ -65,6 +71,7 @@
 
 <script setup>
 const { showImage } = useImageModal()
+const { magnetLoading, copyMagnet } = useMagnet()
 
 const items = ref([])
 const pageInfo = ref(null)

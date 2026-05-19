@@ -379,6 +379,10 @@ def api_search():
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
+            # 查询打标状态
+            item_rate = db_module.ItemRate.get_by_fanhao(query)
+            item.rate_value = item_rate.rate_value if item_rate else None
+            item.rate_type = item_rate.rate_type if item_rate else None
     elif tag_id:
         tag_items, page_info = db_module.get_items_by_tag_id(int(tag_id), page=page)
         # 找到对应的 tag 名字用于显示
@@ -388,14 +392,18 @@ def api_search():
                 break
         for it in tag_items:
             _remove_extra_tags(it)
+            # 查询打标状态
+            it_rate = db_module.ItemRate.get_by_fanhao(it.fanhao)
+            it.rate_value = it_rate.rate_value if it_rate else None
+            it.rate_type = it_rate.rate_type if it_rate else None
 
     result = {
         'query': query,
         'tag_value': tag_value,
         'tag_id': tag_id,
         'genre_tags': genre_tags,
-        'item': _item_to_dict(item) if item else None,
-        'tag_items': [_item_to_dict(it) for it in tag_items],
+        'item': _item_rate_to_dict(item) if item else None,
+        'tag_items': [_item_rate_to_dict(it) for it in tag_items],
         'page_info': _page_info_to_dict(page_info) if page_info else None,
     }
 
@@ -527,6 +535,53 @@ def api_re_recommend():
             'error': f'推荐失败: {e}',
             'deleted': deleted,
         })
+
+
+@route('/api/magnet/<fanhao>')
+def api_magnet(fanhao):
+    """获取影片的最大磁力链接（实时从 javbus-api 获取，不存数据库）"""
+    from bustag.spider import api_client
+
+    try:
+        # 1. 获取影片详情，拿到 gid 和 uc
+        detail = api_client.get_movie_detail(fanhao)
+        gid = detail.get('gid')
+        uc = detail.get('uc')
+        if not gid or uc is None:
+            return _json_response({'error': '无法获取影片信息'}, )
+
+        # 2. 获取磁力链接列表
+        magnets = api_client.get_magnets(fanhao, gid, uc)
+        if not magnets or not isinstance(magnets, list) or len(magnets) == 0:
+            return _json_response({'error': '暂无磁力链接'})
+
+        # 3. 找文件最大的磁力（按 size 排序）
+        def parse_size(m):
+            """解析磁力链接的大小，返回字节数"""
+            size_str = m.get('size', '0')
+            if isinstance(size_str, (int, float)):
+                return float(size_str)
+            size_str = str(size_str).upper().strip()
+            if 'GB' in size_str:
+                return float(size_str.replace('GB', '').strip()) * 1024 * 1024 * 1024
+            elif 'MB' in size_str:
+                return float(size_str.replace('MB', '').strip()) * 1024 * 1024
+            elif 'KB' in size_str:
+                return float(size_str.replace('KB', '').strip()) * 1024
+            try:
+                return float(size_str)
+            except (ValueError, TypeError):
+                return 0
+
+        best = max(magnets, key=parse_size)
+        return _json_response({
+            'magnet': best.get('link', ''),
+            'size': best.get('size', ''),
+            'name': best.get('name', ''),
+            'count': len(magnets),
+        })
+    except Exception as e:
+        return _json_response({'error': f'获取失败: {str(e)}'})
 
 
 @route('/api/version')
