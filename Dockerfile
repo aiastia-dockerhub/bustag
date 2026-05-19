@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && find /install -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null \
     && find /install -type d -name 'tests' -exec rm -rf {} + 2>/dev/null \
     && find /install -type d -name 'test' -exec rm -rf {} + 2>/dev/null \
-    && find /install -type f -name '*.pyi' -delete 2>/dev/null \
     && find /install -type f -name '*.pyx' -delete 2>/dev/null \
     && find /install -type f -name '*.c' -delete 2>/dev/null \
     && find /install -type f -name '*.pxd' -delete 2>/dev/null \
@@ -29,11 +28,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && rm -rf /install/lib/python3.11/site-packages/numpy/tests \
     && rm -rf /install/lib/python3.11/site-packages/scipy/doc \
     && rm -rf /install/lib/python3.11/site-packages/scipy/tests \
-    && rm -rf /install/lib/python3.11/site-packages/sklearn/datasets \
     && rm -rf /install/lib/python3.11/site-packages/sklearn/tests \
     && rm -rf /install/lib/python3.11/site-packages/pandas/tests \
     && rm -rf /install/lib/python3.11/site-packages/pandas/stubs \
-    && rm -rf /install/lib/python3.11/site-packages/pandas/_testing \
     && rm -rf /install/lib/python3.11/site-packages/lightgbm/examples \
     && rm -rf /install/lib/python3.11/site-packages/lightgbm/tests \
     && rm -rf /install/lib/python3.11/site-packages/category_encoders/tests \
