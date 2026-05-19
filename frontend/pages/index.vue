@@ -12,7 +12,9 @@
              href="#" @click.prevent="switchLike(0)">👎 不喜欢</a>
         </li>
       </ul>
-      <div class="ms-auto">
+      <div class="ms-auto d-flex align-items-center gap-3">
+        <span v-if="todayUpdate > 0" class="badge bg-info text-dark">📥 今日更新 {{ todayUpdate }}</span>
+        <span v-if="todayRecommend > 0" class="badge bg-success">🤖 今日推荐 {{ todayRecommend }}</span>
         <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
           <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
         </select>
@@ -79,6 +81,8 @@ const like = ref(1)
 const movieTypes = ref(['normal'])
 const movieType = ref('normal')
 const loading = ref(false)
+const todayUpdate = ref(0)
+const todayRecommend = ref(0)
 
 const showImg = (url) => showImage(imgProxyUrl(url))
 
@@ -98,6 +102,8 @@ const loadData = async (page = 1, bustCache = false) => {
     pageInfo.value = res.page_info
     movieTypes.value = res.movie_types
     movieType.value = res.movie_type
+    todayUpdate.value = res.today_update || 0
+    todayRecommend.value = res.today_recommend || 0
   } catch (e) {
     console.error('加载推荐失败:', e)
   } finally {
