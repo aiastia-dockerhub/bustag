@@ -25,5 +25,8 @@ defineProps({
   pageInfo: Object,
 })
 const emit = defineEmits(['go-page'])
-const goPage = (page) => emit('go-page', Number(page))
+const goPage = (page) => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  emit('go-page', Number(page))
+}
 </script>
