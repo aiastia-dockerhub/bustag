@@ -589,3 +589,16 @@ def api_version():
     """版本信息"""
     from bustag import __version__
     return _json_response({'version': __version__})
+
+
+def start_app():
+    """启动 Bottle API 服务 + 定时任务调度"""
+    from bustag.app.schedule import start_scheduler
+    from bustag.util import logger
+
+    host = APP_CONFIG.get('app.host', '127.0.0.1')
+    port = int(APP_CONFIG.get('app.port', 8199))
+    logger.info(f'Starting bustag API on {host}:{port}')
+
+    start_scheduler()
+    run(host=host, port=port, server='paste', quiet=True)
