@@ -64,7 +64,7 @@
           </p>
           <p class="mb-0 small">
             Developed by 凤凰山@2019 ·
-            <a href="https://github.com/gxtrobot/bustag" target="_blank">GitHub</a>
+            <a href="https://github.com/aiastia-dockerhub/bustag" target="_blank">GitHub</a>
             · 2026 Nuxt Edition
           </p>
         </div>
