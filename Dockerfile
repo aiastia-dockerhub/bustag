@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     curl \
     libgomp1 \
+    tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/cache/nginx \
     && mkdir -p /var/log/nginx /run/nginx \
