@@ -33,7 +33,6 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && rm -rf /install/lib/python3.12/site-packages/pandas/stubs \
     && rm -rf /install/lib/python3.12/site-packages/lightgbm/examples \
     && rm -rf /install/lib/python3.12/site-packages/lightgbm/tests \
-    && rm -rf /install/lib/python3.12/site-packages/category_encoders/tests \
     && find /install -type d -empty -delete 2>/dev/null
 
 # ===== Stage 3: Release =====
