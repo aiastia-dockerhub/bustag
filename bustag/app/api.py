@@ -597,7 +597,7 @@ def start_app():
     from bustag.util import logger
 
     host = APP_CONFIG.get('app.host', '127.0.0.1')
-    port = int(APP_CONFIG.get('app.port', 8199))
+    port = int(APP_CONFIG.get('app.port', 8000))
     logger.info(f'Starting bustag API on {host}:{port}')
 
     start_scheduler()
