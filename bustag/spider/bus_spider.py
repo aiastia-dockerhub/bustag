@@ -10,6 +10,7 @@ from .db import save, Item, SkipItem
 from bustag.util import APP_CONFIG, logger
 
 MAXPAGE = 30
+MAX_CONSECUTIVE_FAILURES = 3  # 连续失败超过此数则提前终止
 
 
 def get_url_by_fanhao(fanhao):
@@ -92,6 +93,7 @@ def download_movies(pages=None):
 
     magnet = APP_CONFIG.get('download.magnet', 'exist')
     movie_type = APP_CONFIG.get('download.movie_type', 'normal')
+    consecutive_failures = 0
 
     for page in range(1, pages + 1):
         logger.info(f'Fetching movie list page {page}/{pages}')
@@ -99,8 +101,17 @@ def download_movies(pages=None):
 
         try:
             result = get_movies(page=page, magnet=magnet, movie_type=movie_type)
+            consecutive_failures = 0  # 请求成功，重置计数
         except Exception as e:
+            consecutive_failures += 1
             logger.error(f'Failed to fetch page {page}: {e}')
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                logger.error(
+                    f'API consecutive failures reached {MAX_CONSECUTIVE_FAILURES}, '
+                    f'stopping download. Please check if javbus-api service is running.'
+                )
+                print(f'Too many failures, stopping')
+                break
             continue
 
         movies = result.get('movies', [])
