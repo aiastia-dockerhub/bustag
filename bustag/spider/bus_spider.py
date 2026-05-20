@@ -97,7 +97,13 @@ def download_movies(pages=None):
     movie_type_config = APP_CONFIG.get('download.movie_type', 'normal')
     movie_types = [t.strip() for t in movie_type_config.split(',') if t.strip()]
 
-    for mt in movie_types:
+    for i, mt in enumerate(movie_types):
+        # 类型间添加延迟，避免对外部 API 造成过载
+        if i > 0:
+            type_delay = 10
+            logger.info(f'Waiting {type_delay}s before starting next type ({mt})...')
+            time.sleep(type_delay)
+
         logger.info(f'Starting download for movie_type: {mt}')
         saved, processed = _download_by_type(pages=pages, magnet=magnet, movie_type=mt)
         total_saved += saved
