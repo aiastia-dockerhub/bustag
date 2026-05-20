@@ -52,6 +52,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /var/log/nginx /run/nginx \
     && touch /var/log/nginx/error.log /var/log/nginx/access.log
 
+# 设置默认时区（可通过 docker-compose 环境变量覆盖）
+ENV TZ=Asia/Shanghai
+
 # Copy ONLY the node binary (not npm or node_modules - Nuxt .output is self-contained)
 COPY --from=frontend-build /usr/local/bin/node /usr/local/bin/node
 
