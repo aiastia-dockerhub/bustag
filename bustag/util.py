@@ -2,9 +2,14 @@ import logging
 import os
 import sys
 import configparser
+import warnings
 import pytz
 import datetime
 from urllib.parse import urljoin, urlparse
+
+# 抑制 tzlocal 的 /etc/timezone 弃用警告（来自 APScheduler 依赖）
+warnings.filterwarnings('ignore', message='.*tzlocal.*')
+warnings.filterwarnings('ignore', message='.*timezone.*deprecated.*')
 
 logger = logging.getLogger('bustag')
 TESTING = False
