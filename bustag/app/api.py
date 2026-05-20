@@ -219,6 +219,7 @@ def api_tag(fanhao):
         ItemRate.saveit(rate_type, rate_value, fanhao)
     else:
         item_rate.rate_value = rate_value
+        item_rate.rate_type = RATE_TYPE.USER_RATE
         item_rate.save()
 
     # 清除相关缓存
@@ -366,8 +367,10 @@ def api_search():
 
     query = request.query.get('q', '').strip()
     tag_id = request.query.get('tag_id', '').strip()
+    star_id = request.query.get('star_id', '').strip()
     page = int(request.query.get('page', 1))
     genre_tags = db_module.get_genre_tags()
+    star_tags = db_module.get_star_tags()
 
     item = None
     tag_items = []
@@ -396,12 +399,27 @@ def api_search():
             it_rate = db_module.ItemRate.get_by_fanhao(it.fanhao)
             it.rate_value = it_rate.rate_value if it_rate else None
             it.rate_type = it_rate.rate_type if it_rate else None
+    elif star_id:
+        tag_items, page_info = db_module.get_items_by_tag_id(int(star_id), page=page)
+        # 找到对应的 star 名字用于显示
+        for t in star_tags:
+            if str(t['id']) == star_id:
+                tag_value = t['value']
+                break
+        for it in tag_items:
+            _remove_extra_tags(it)
+            # 查询打标状态
+            it_rate = db_module.ItemRate.get_by_fanhao(it.fanhao)
+            it.rate_value = it_rate.rate_value if it_rate else None
+            it.rate_type = it_rate.rate_type if it_rate else None
 
     result = {
         'query': query,
         'tag_value': tag_value,
         'tag_id': tag_id,
+        'star_id': star_id,
         'genre_tags': genre_tags,
+        'star_tags': star_tags,
         'item': _item_rate_to_dict(item) if item else None,
         'tag_items': [_item_rate_to_dict(it) for it in tag_items],
         'page_info': _page_info_to_dict(page_info) if page_info else None,

@@ -20,6 +20,16 @@
             <button class="btn btn-outline-secondary" type="submit">搜索</button>
           </form>
         </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small fw-bold">👩 女优搜索</label>
+          <form @submit.prevent="doStarSearch" class="input-group">
+            <select class="form-select" v-model="currentStarId">
+              <option value="">-- 选择女优 --</option>
+              <option v-for="star in starTags" :key="star.id" :value="star.id">{{ star.value }}</option>
+            </select>
+            <button class="btn btn-outline-secondary" type="submit">搜索</button>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -68,10 +78,12 @@
       <div class="alert alert-warning d-inline-block">未找到番号「{{ query }}」的相关信息</div>
     </div>
 
-    <!-- 标签搜索结果 -->
+    <!-- 标签/女优搜索结果 -->
     <template v-if="tagItems.length > 0">
       <div class="py-2">
-        <h6 class="fw-bold">🏷️ 标签「{{ currentTag }}」共 {{ tagPageInfo?.total_items || 0 }} 条</h6>
+        <h6 class="fw-bold">
+          {{ searchType === 'star' ? '👩 女优' : '🏷️ 标签' }}「{{ currentTag }}」共 {{ tagPageInfo?.total_items || 0 }} 条
+        </h6>
       </div>
       <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
         <div class="row g-3">
@@ -132,27 +144,35 @@ const item = ref(null)
 const tagItems = ref([])
 const tagPageInfo = ref(null)
 const genreTags = ref([])
+const starTags = ref([])
 const currentTagId = ref('')
+const currentStarId = ref('')
 const currentTag = ref('')
 const loading = ref(false)
 const searched = ref(false)
 
 const showImg = (url) => showImage(imgProxyUrl(url))
 
-const loadGenreTags = async () => {
-  if (genreTags.value.length > 0) return
+const loadTags = async () => {
+  if (genreTags.value.length > 0 && starTags.value.length > 0) return
   try {
     const res = await $fetch('/api/search', { params: { page: 1 } })
     genreTags.value = res.genre_tags || []
+    starTags.value = res.star_tags || []
   } catch (e) {
     console.error('加载标签失败:', e)
   }
 }
 
+// 当前列表搜索类型: '' = 无, 'tag' = 标签, 'star' = 女优
+const searchType = ref('')
+
 const doSearch = async () => {
   if (!query.value.trim()) return
   currentTagId.value = ''
+  currentStarId.value = ''
   currentTag.value = ''
+  searchType.value = ''
   tagItems.value = []
   tagPageInfo.value = null
   searched.value = true
@@ -161,6 +181,7 @@ const doSearch = async () => {
     const res = await $fetch('/api/search', { params: { q: query.value, page: 1 } })
     item.value = res.item
     genreTags.value = res.genre_tags || genreTags.value
+    starTags.value = res.star_tags || starTags.value
   } catch (e) {
     console.error('搜索失败:', e)
   } finally {
@@ -171,8 +192,10 @@ const doSearch = async () => {
 const doTagSearch = async () => {
   if (!currentTagId.value) return
   query.value = ''
+  currentStarId.value = ''
   item.value = null
   searched.value = false
+  searchType.value = 'tag'
   loading.value = true
   try {
     const res = await $fetch('/api/search', { params: { tag_id: currentTagId.value, page: 1 } })
@@ -180,6 +203,29 @@ const doTagSearch = async () => {
     tagPageInfo.value = res.page_info
     currentTag.value = res.tag_value || ''
     genreTags.value = res.genre_tags || genreTags.value
+    starTags.value = res.star_tags || starTags.value
+  } catch (e) {
+    console.error('搜索失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+const doStarSearch = async () => {
+  if (!currentStarId.value) return
+  query.value = ''
+  currentTagId.value = ''
+  item.value = null
+  searched.value = false
+  searchType.value = 'star'
+  loading.value = true
+  try {
+    const res = await $fetch('/api/search', { params: { star_id: currentStarId.value, page: 1 } })
+    tagItems.value = res.tag_items || []
+    tagPageInfo.value = res.page_info
+    currentTag.value = res.tag_value || ''
+    genreTags.value = res.genre_tags || genreTags.value
+    starTags.value = res.star_tags || starTags.value
   } catch (e) {
     console.error('搜索失败:', e)
   } finally {
@@ -190,7 +236,13 @@ const doTagSearch = async () => {
 const goTagPage = async (page) => {
   loading.value = true
   try {
-    const res = await $fetch('/api/search', { params: { tag_id: currentTagId.value, page } })
+    const params = { page }
+    if (searchType.value === 'star') {
+      params.star_id = currentStarId.value
+    } else {
+      params.tag_id = currentTagId.value
+    }
+    const res = await $fetch('/api/search', { params })
     tagItems.value = res.tag_items || []
     tagPageInfo.value = res.page_info
   } catch (e) {
@@ -198,6 +250,19 @@ const goTagPage = async (page) => {
   } finally {
     loading.value = false
   }
+}
+
+const refreshTagResults = async () => {
+  const page = tagPageInfo.value?.current_page || 1
+  const params = { page }
+  if (searchType.value === 'star') {
+    params.star_id = currentStarId.value
+  } else {
+    params.tag_id = currentTagId.value
+  }
+  const res = await $fetch('/api/search', { params })
+  tagItems.value = res.tag_items || []
+  tagPageInfo.value = res.page_info
 }
 
 const tagItem = async (fanhao, rateValue, event) => {
@@ -214,29 +279,21 @@ const tagItem = async (fanhao, rateValue, event) => {
     // 刷新当前搜索结果以更新打标状态
     if (item.value && item.value.fanhao === fanhao && query.value) {
       // 番号搜索结果：重新搜索
-      searched.value = true
-      loading.value = true
       const res = await $fetch('/api/search', { params: { q: query.value, page: 1 } })
       item.value = res.item
-      loading.value = false
-    } else if (currentTagId.value) {
-      // 标签搜索结果：刷新当前页
-      loading.value = true
-      const page = tagPageInfo.value?.current_page || 1
-      const res = await $fetch('/api/search', { params: { tag_id: currentTagId.value, page } })
-      tagItems.value = res.tag_items || []
-      tagPageInfo.value = res.page_info
-      loading.value = false
+    } else if (searchType.value) {
+      // 标签/女优搜索结果：刷新当前页
+      await refreshTagResults()
     }
   } catch (e) {
     console.error('打标失败:', e)
     if (btn) {
       btn.disabled = false
-      btn.textContent = rateValue === 1 ? '👍' : '👎'
+      btn.textContent = rateValue === 1 ? '👍 喜欢' : '👎 不喜欢'
     }
     alert('打标失败: ' + (e.data?.status || e.message))
   }
 }
 
-onMounted(() => loadGenreTags())
+onMounted(() => loadTags())
 </script>

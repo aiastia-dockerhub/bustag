@@ -426,6 +426,17 @@ def get_genre_tags():
     return [{'id': t.id, 'value': t.value} for t in tags]
 
 
+def get_star_tags():
+    '''
+    获取所有 star 类型的标签（女优），按字母排序，返回 {id, value} 列表
+    '''
+    tags = (Tag.select(Tag.id, Tag.value)
+            .where(Tag.type_ == 'star')
+            .order_by(Tag.value)
+            .distinct())
+    return [{'id': t.id, 'value': t.value} for t in tags]
+
+
 def get_items_by_tag_id(tag_id, page=1, page_size=10):
     '''
     按标签 ID 搜索关联的 Item，支持分页
