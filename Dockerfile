@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 tzdata \
     && rm -rf /var/lib/apt/lists/*
 
+# 设置默认时区（可通过 docker-compose 环境变量覆盖）
+ENV TZ=Asia/Shanghai
+
 # Copy installed Python packages
 COPY --from=build /install /usr/local
 

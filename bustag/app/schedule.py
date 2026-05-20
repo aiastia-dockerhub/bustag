@@ -2,6 +2,7 @@
 定时任务调度模块
 使用 javbus-api 替代原有的 aspider 爬虫
 '''
+import os
 import threading
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -10,6 +11,15 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
 from bustag.spider import bus_spider
 from bustag.util import logger, APP_CONFIG
+
+# 获取时区：优先使用 TZ 环境变量，默认 Asia/Shanghai
+def _get_timezone():
+    tz = os.environ.get('TZ', 'Asia/Shanghai')
+    try:
+        from pytz import timezone
+        return timezone(tz)
+    except Exception:
+        return None
 
 scheduler = None
 
@@ -52,7 +62,9 @@ def start_scheduler():
 
     schedule_mode = APP_CONFIG.get('download.schedule_mode', 'interval').lower().strip()
 
-    scheduler = BackgroundScheduler()
+    tz = _get_timezone()
+    scheduler = BackgroundScheduler(timezone=tz)
+    logger.info(f'Scheduler timezone: {tz}')
 
     # 启动后立即执行一次
     t1 = datetime.now() + timedelta(seconds=1)
