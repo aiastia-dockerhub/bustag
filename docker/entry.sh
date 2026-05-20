@@ -8,6 +8,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo "Creating default config.ini..."
     cat > "$CONFIG_FILE" << 'CONFEOF'
 [download]
+# 本地开发: http://localhost:3000 | Docker Compose: http://javbus-api:3000 | 自部署: 你的域名
 api_base_url = http://localhost:3000
 auth_token = 
 javbus_url = https://www.javbus.com

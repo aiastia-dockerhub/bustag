@@ -8,6 +8,10 @@ import threading
 import requests
 from bustag.util import logger, APP_CONFIG
 
+# 重试配置
+MAX_RETRIES = 3
+RETRY_BACKOFF = 2  # 重试间隔基数（秒），实际间隔 = RETRY_BACKOFF * attempt
+
 # 全局速率控制
 _last_request_time = 0
 _rate_lock = threading.Lock()
@@ -52,9 +56,22 @@ def _get_headers():
     return headers
 
 
+def _is_retryable_error(error):
+    '''判断错误是否值得重试（服务端错误、连接超时等）'''
+    if isinstance(error, requests.ConnectionError):
+        return True
+    if isinstance(error, requests.Timeout):
+        return True
+    if isinstance(error, requests.HTTPError):
+        code = error.response.status_code if error.response is not None else 0
+        # 5xx 服务端错误可重试；429 限流可重试；404 不重试
+        return code >= 500 or code == 429
+    return False
+
+
 def _request(endpoint, params=None):
     '''
-    发送 API 请求（自动速率控制）
+    发送 API 请求（自动速率控制 + 重试）
 
     Args:
         endpoint: API 端点路径（如 /api/movies）
@@ -66,21 +83,34 @@ def _request(endpoint, params=None):
     Raises:
         requests.RequestException: 请求失败时抛出
     '''
-    _rate_limit()
-
     base_url = get_api_base_url().rstrip('/')
     url = f'{base_url}{endpoint}'
     headers = _get_headers()
 
     logger.debug(f'API request: {url} params={params}')
 
-    try:
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        logger.error(f'API request failed: {url}, error: {e}')
-        raise
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        _rate_limit()
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            last_error = e
+            if _is_retryable_error(e) and attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF * attempt
+                logger.warning(
+                    f'API request failed (attempt {attempt}/{MAX_RETRIES}): {url}, '
+                    f'error: {e}, retrying in {wait}s...'
+                )
+                time.sleep(wait)
+            else:
+                logger.error(f'API request failed after {attempt} attempts: {url}, error: {e}')
+                raise
+
+    # 理论上不会到这里，但以防万一
+    raise last_error
 
 
 def get_movies(page=1, magnet='exist', filter_type=None, filter_value=None, movie_type='normal'):
