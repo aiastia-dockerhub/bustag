@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Install runtime dependencies for LightGBM
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
+    libgomp1 tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages
