@@ -31,7 +31,8 @@ def download(fanhaos=None, movie_type='mixed'):
         fanhaos: list - 指定要下载的番号列表，为 None 则批量下载
         movie_type: str - 'normal'=有码, 'uncensored'=无码, 'mixed'=混合（自动判断）
     '''
-    print('start download')
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logger.info(f'===== 开始爬取 [{now_str}] =====')
     saved_count = 0
     if fanhaos:
         logger.info(f'Downloading specified fanhaos: {len(fanhaos)} items, movie_type={movie_type}')
@@ -51,6 +52,18 @@ def download(fanhaos=None, movie_type='mixed'):
             print(f'模型版本不兼容，请重新训练模型。错误: {e}')
     else:
         logger.info('没有新影片保存，跳过推荐')
+
+    end_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logger.info(f'===== 爬取完成 [{end_str}]，本次保存 {saved_count} 部影片 =====')
+
+    # 输出下次预计执行时间
+    if scheduler:
+        jobs = scheduler.get_jobs()
+        for job in jobs:
+            if job.next_run_time:
+                next_str = job.next_run_time.strftime('%Y-%m-%d %H:%M:%S')
+                logger.info(f'下次爬取预计时间: {next_str}')
+                break
 
 
 def start_scheduler():

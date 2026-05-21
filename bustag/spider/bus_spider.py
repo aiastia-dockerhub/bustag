@@ -3,6 +3,7 @@
 使用 javbus-api 替代原有的 aspider 网站爬虫
 '''
 import time
+from datetime import datetime
 import requests
 from .api_client import get_movies, get_movie_detail, search_movies
 from .parser import parse_movie_detail
@@ -104,12 +105,14 @@ def download_movies(pages=None):
             logger.info(f'Waiting {type_delay}s before starting next type ({mt})...')
             time.sleep(type_delay)
 
-        logger.info(f'Starting download for movie_type: {mt}')
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f'[{now_str}] Starting download for movie_type: {mt}')
         saved, processed = _download_by_type(pages=pages, magnet=magnet, movie_type=mt)
         total_saved += saved
         total_processed += processed
 
-    logger.info(f'Download complete: processed {total_processed}, saved {total_saved}')
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logger.info(f'[{now_str}] Download complete: processed {total_processed}, saved {total_saved}')
     print(f'Download complete: processed {total_processed}, saved {total_saved}')
     return total_saved
 
@@ -131,8 +134,9 @@ def _download_by_type(pages, magnet, movie_type):
     consecutive_failures = 0
 
     for page in range(1, pages + 1):
-        logger.info(f'Fetching movie list page {page}/{pages} (type={movie_type})')
-        print(f'process page {page} (type={movie_type})')
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f'[{now_str}] Fetching movie list page {page}/{pages} (type={movie_type})')
+        print(f'[{now_str}] process page {page} (type={movie_type})')
 
         try:
             result = get_movies(page=page, magnet=magnet, movie_type=movie_type)
@@ -170,14 +174,16 @@ def _download_by_type(pages, magnet, movie_type):
 
         # 如果整页都是重复的，说明后面的页更旧，提前停止
         if page_saved == 0:
-            logger.info(f'Page {page} has no new movies, stopping early')
-            print(f'Page {page} all duplicates, stopping early')
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f'[{now_str}] Page {page} has no new movies, stopping early')
+            print(f'[{now_str}] Page {page} all duplicates, stopping early')
             break
 
         # 分页间隔
         time.sleep(2)
 
-    logger.info(f'Download type={movie_type} complete: processed {total_processed}, saved {total_saved}')
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logger.info(f'[{now_str}] Download type={movie_type} complete: processed {total_processed}, saved {total_saved}')
     return total_saved, total_processed
 
 
