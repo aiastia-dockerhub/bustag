@@ -361,42 +361,15 @@ def api_load_db():
 
 def _enrich_items_with_rate(items, rate_filter=''):
     '''
-    为搜索结果添加打标状态，并根据 rate_filter 筛选
-    筛选逻辑（AND 关系）：
-    - liked: 用户打标喜欢 (rate_type=1, rate_value=1)
-    - disliked: 用户打标不喜欢 (rate_type=1, rate_value=0)
-    - recommended: 系统推荐 (rate_type=2)
-    - unrated: 未打标
-    - '': 全部（不过滤）
+    为搜索结果添加打标状态（筛选已在数据库层面完成）
     '''
-    from bustag.spider.db import ItemRate, RATE_TYPE
+    from bustag.spider.db import ItemRate
 
-    filtered = []
     for it in items:
         _remove_extra_tags(it)
         it_rate = ItemRate.get_by_fanhao(it.fanhao)
         it.rate_value = it_rate.rate_value if it_rate else None
         it.rate_type = it_rate.rate_type if it_rate else None
-
-        if not rate_filter:
-            filtered.append(it)
-            continue
-
-        if rate_filter == 'liked':
-            if it.rate_type == RATE_TYPE.USER_RATE.value and it.rate_value == 1:
-                filtered.append(it)
-        elif rate_filter == 'disliked':
-            if it.rate_type == RATE_TYPE.USER_RATE.value and it.rate_value == 0:
-                filtered.append(it)
-        elif rate_filter == 'recommended':
-            if it.rate_type == RATE_TYPE.SYSTEM_RATE.value:
-                filtered.append(it)
-        elif rate_filter == 'unrated':
-            if it.rate_type is None:
-                filtered.append(it)
-
-    # 就地修改列表（因为外部持有引用）
-    items[:] = filtered
 
 
 @route('/api/search')
@@ -428,21 +401,23 @@ def api_search():
             item.rate_value = item_rate.rate_value if item_rate else None
             item.rate_type = item_rate.rate_type if item_rate else None
     elif tag_id:
-        tag_items, page_info = db_module.get_items_by_tag_id(int(tag_id), page=page)
+        tag_items, page_info = db_module.get_items_by_tag_id(
+            int(tag_id), page=page, rate_filter=rate_filter or None)
         # 找到对应的 tag 名字用于显示
         for t in genre_tags:
             if str(t['id']) == tag_id:
                 tag_value = t['value']
                 break
-        _enrich_items_with_rate(tag_items, rate_filter)
+        _enrich_items_with_rate(tag_items)
     elif star_id:
-        tag_items, page_info = db_module.get_items_by_tag_id(int(star_id), page=page)
+        tag_items, page_info = db_module.get_items_by_tag_id(
+            int(star_id), page=page, rate_filter=rate_filter or None)
         # 找到对应的 star 名字用于显示
         for t in star_tags:
             if str(t['id']) == star_id:
                 tag_value = t['value']
                 break
-        _enrich_items_with_rate(tag_items, rate_filter)
+        _enrich_items_with_rate(tag_items)
 
     result = {
         'query': query,

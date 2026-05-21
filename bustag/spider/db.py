@@ -437,33 +437,66 @@ def get_star_tags():
     return [{'id': t.id, 'value': t.value} for t in tags]
 
 
-def get_items_by_tag_id(tag_id, page=1, page_size=10):
+def get_items_by_tag_id(tag_id, page=1, page_size=10, rate_filter=None):
     '''
-    按标签 ID 搜索关联的 Item，支持分页
+    按标签 ID 搜索关联的 Item，支持分页和评分筛选
+    rate_filter: None/'liked'/'disliked'/'recommended'/'unrated'
     '''
     items_list = []
     tag = Tag.get_or_none(Tag.id == tag_id)
     if not tag:
         return items_list, (0, 0, 1, page_size)
-    return get_items_by_tag(tag.value, page=page, page_size=page_size)
+    return get_items_by_tag(tag.value, page=page, page_size=page_size,
+                            rate_filter=rate_filter)
 
 
-def get_items_by_tag(tag_value, page=1, page_size=10):
+def get_items_by_tag(tag_value, page=1, page_size=10, rate_filter=None):
     '''
-    按标签值搜索关联的 Item，支持分页
+    按标签值搜索关联的 Item，支持分页和评分筛选
+    rate_filter: None/'liked'/'disliked'/'recommended'/'unrated'
     '''
     items_list = []
     tag = Tag.get_or_none(Tag.value == tag_value)
     if not tag:
         return items_list, (0, 0, 1, page_size)
 
-    # 排序：添加日期(只取日期部分)降序 → 发行日期降序 → ID升序
-    q = (Item.select(Item)
-         .join(ItemTag, on=(ItemTag.item == Item.fanhao))
-         .join(Tag, on=(ItemTag.tag == Tag.id))
-         .where(Tag.value == tag_value)
-         .order_by(fn.date(Item.add_date).desc(), Item.release_date.desc(), Item.id.asc())
-         )
+    clauses = [(Tag.value == tag_value)]
+
+    if rate_filter in ('liked', 'disliked', 'recommended'):
+        # 需要 INNER JOIN ItemRate（只返回有对应打标记录的）
+        q = (Item.select(Item)
+             .join(ItemTag, on=(ItemTag.item == Item.fanhao))
+             .join(Tag, on=(ItemTag.tag == Tag.id))
+             .switch(Item)
+             .join(ItemRate, on=(ItemRate.item_id == Item.fanhao))
+             )
+        if rate_filter == 'liked':
+            clauses.append(ItemRate.rate_type == RATE_TYPE.USER_RATE)
+            clauses.append(ItemRate.rate_value == RATE_VALUE.LIKE)
+        elif rate_filter == 'disliked':
+            clauses.append(ItemRate.rate_type == RATE_TYPE.USER_RATE)
+            clauses.append(ItemRate.rate_value == RATE_VALUE.DISLIKE)
+        elif rate_filter == 'recommended':
+            clauses.append(ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE)
+    elif rate_filter == 'unrated':
+        # LEFT JOIN ItemRate，筛选没有打标记录的
+        q = (Item.select(Item)
+             .join(ItemTag, on=(ItemTag.item == Item.fanhao))
+             .join(Tag, on=(ItemTag.tag == Tag.id))
+             .switch(Item)
+             .join(ItemRate, JOIN.LEFT_OUTER, on=(ItemRate.item_id == Item.fanhao))
+             )
+        clauses.append(ItemRate.id.is_null())
+    else:
+        # 无筛选，不 JOIN ItemRate
+        q = (Item.select(Item)
+             .join(ItemTag, on=(ItemTag.item == Item.fanhao))
+             .join(Tag, on=(ItemTag.tag == Tag.id))
+             )
+
+    q = q.where(reduce(operator.and_, clauses)).order_by(
+        fn.date(Item.add_date).desc(), Item.release_date.desc(), Item.id.asc())
+
     total_items = q.count()
     if page is not None:
         q = q.paginate(page, page_size)
