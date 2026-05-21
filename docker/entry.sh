@@ -16,7 +16,10 @@ img_base_url = https://www.javbus.com
 count = 10
 magnet = exist
 movie_type = normal,uncensored
-interval = 10800  # 10800秒=3小时, 3600秒=1小时, 1800秒=30分钟
+# 定时模式：指定每天执行时间点（北京时间），留空则用 interval 间隔模式
+schedule = 8:00,12:00,15:00,22:00
+# 间隔模式：仅当 schedule 为空时生效（10800秒=3小时, 3600秒=1小时）
+interval = 10800
 api_interval = 0.5
 batch_size = 100
 batch_interval = 5
