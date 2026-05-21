@@ -359,15 +359,56 @@ def api_load_db():
     return _json_response({'msg': msg, 'errmsg': errmsg})
 
 
+def _enrich_items_with_rate(items, rate_filter=''):
+    '''
+    为搜索结果添加打标状态，并根据 rate_filter 筛选
+    筛选逻辑（AND 关系）：
+    - liked: 用户打标喜欢 (rate_type=1, rate_value=1)
+    - disliked: 用户打标不喜欢 (rate_type=1, rate_value=0)
+    - recommended: 系统推荐 (rate_type=2)
+    - unrated: 未打标
+    - '': 全部（不过滤）
+    '''
+    from bustag.spider.db import ItemRate, RATE_TYPE
+
+    filtered = []
+    for it in items:
+        _remove_extra_tags(it)
+        it_rate = ItemRate.get_by_fanhao(it.fanhao)
+        it.rate_value = it_rate.rate_value if it_rate else None
+        it.rate_type = it_rate.rate_type if it_rate else None
+
+        if not rate_filter:
+            filtered.append(it)
+            continue
+
+        if rate_filter == 'liked':
+            if it.rate_type == RATE_TYPE.USER_RATE.value and it.rate_value == 1:
+                filtered.append(it)
+        elif rate_filter == 'disliked':
+            if it.rate_type == RATE_TYPE.USER_RATE.value and it.rate_value == 0:
+                filtered.append(it)
+        elif rate_filter == 'recommended':
+            if it.rate_type == RATE_TYPE.SYSTEM_RATE.value:
+                filtered.append(it)
+        elif rate_filter == 'unrated':
+            if it.rate_type is None:
+                filtered.append(it)
+
+    # 就地修改列表（因为外部持有引用）
+    items[:] = filtered
+
+
 @route('/api/search')
 def api_search():
     """搜索"""
-    from bustag.spider.db import Item
+    from bustag.spider.db import Item, RATE_TYPE
     from bustag.spider import db as db_module
 
     query = request.query.get('q', '').strip()
     tag_id = request.query.get('tag_id', '').strip()
     star_id = request.query.get('star_id', '').strip()
+    rate_filter = request.query.get('rate_filter', '').strip()
     page = int(request.query.get('page', 1))
     genre_tags = db_module.get_genre_tags()
     star_tags = db_module.get_star_tags()
@@ -393,12 +434,7 @@ def api_search():
             if str(t['id']) == tag_id:
                 tag_value = t['value']
                 break
-        for it in tag_items:
-            _remove_extra_tags(it)
-            # 查询打标状态
-            it_rate = db_module.ItemRate.get_by_fanhao(it.fanhao)
-            it.rate_value = it_rate.rate_value if it_rate else None
-            it.rate_type = it_rate.rate_type if it_rate else None
+        _enrich_items_with_rate(tag_items, rate_filter)
     elif star_id:
         tag_items, page_info = db_module.get_items_by_tag_id(int(star_id), page=page)
         # 找到对应的 star 名字用于显示
@@ -406,18 +442,14 @@ def api_search():
             if str(t['id']) == star_id:
                 tag_value = t['value']
                 break
-        for it in tag_items:
-            _remove_extra_tags(it)
-            # 查询打标状态
-            it_rate = db_module.ItemRate.get_by_fanhao(it.fanhao)
-            it.rate_value = it_rate.rate_value if it_rate else None
-            it.rate_type = it_rate.rate_type if it_rate else None
+        _enrich_items_with_rate(tag_items, rate_filter)
 
     result = {
         'query': query,
         'tag_value': tag_value,
         'tag_id': tag_id,
         'star_id': star_id,
+        'rate_filter': rate_filter,
         'genre_tags': genre_tags,
         'star_tags': star_tags,
         'item': _item_rate_to_dict(item) if item else None,

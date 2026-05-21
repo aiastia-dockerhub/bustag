@@ -30,6 +30,16 @@
             <button class="btn btn-outline-secondary" type="submit">搜索</button>
           </form>
         </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label small fw-bold">📊 评分筛选</label>
+          <select class="form-select" v-model="rateFilter" @change="applyRateFilter">
+            <option value="">全部</option>
+            <option value="liked">🟢 喜欢</option>
+            <option value="disliked">🔴 不喜欢</option>
+            <option value="recommended">🤖 系统推荐</option>
+            <option value="unrated">⚪ 未打标</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -150,8 +160,26 @@ const currentStarId = ref('')
 const currentTag = ref('')
 const loading = ref(false)
 const searched = ref(false)
+const rateFilter = ref('')
 
 const showImg = (url) => showImage(imgProxyUrl(url))
+
+// 构建带评分筛选的搜索参数
+const _buildParams = (base = {}) => {
+  if (rateFilter.value) {
+    base.rate_filter = rateFilter.value
+  }
+  return base
+}
+
+// 评分筛选变更时，重新执行当前搜索
+const applyRateFilter = async () => {
+  if (searchType.value === 'tag' && currentTagId.value) {
+    await doTagSearch()
+  } else if (searchType.value === 'star' && currentStarId.value) {
+    await doStarSearch()
+  }
+}
 
 const loadTags = async () => {
   if (genreTags.value.length > 0 && starTags.value.length > 0) return
@@ -178,7 +206,7 @@ const doSearch = async () => {
   searched.value = true
   loading.value = true
   try {
-    const res = await $fetch('/api/search', { params: { q: query.value, page: 1 } })
+    const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
     item.value = res.item
     genreTags.value = res.genre_tags || genreTags.value
     starTags.value = res.star_tags || starTags.value
@@ -198,7 +226,7 @@ const doTagSearch = async () => {
   searchType.value = 'tag'
   loading.value = true
   try {
-    const res = await $fetch('/api/search', { params: { tag_id: currentTagId.value, page: 1 } })
+    const res = await $fetch('/api/search', { params: _buildParams({ tag_id: currentTagId.value, page: 1 }) })
     tagItems.value = res.tag_items || []
     tagPageInfo.value = res.page_info
     currentTag.value = res.tag_value || ''
@@ -220,7 +248,7 @@ const doStarSearch = async () => {
   searchType.value = 'star'
   loading.value = true
   try {
-    const res = await $fetch('/api/search', { params: { star_id: currentStarId.value, page: 1 } })
+    const res = await $fetch('/api/search', { params: _buildParams({ star_id: currentStarId.value, page: 1 }) })
     tagItems.value = res.tag_items || []
     tagPageInfo.value = res.page_info
     currentTag.value = res.tag_value || ''
@@ -236,7 +264,7 @@ const doStarSearch = async () => {
 const goTagPage = async (page) => {
   loading.value = true
   try {
-    const params = { page }
+    const params = _buildParams({ page })
     if (searchType.value === 'star') {
       params.star_id = currentStarId.value
     } else {
@@ -254,7 +282,7 @@ const goTagPage = async (page) => {
 
 const refreshTagResults = async () => {
   const page = tagPageInfo.value?.current_page || 1
-  const params = { page }
+  const params = _buildParams({ page })
   if (searchType.value === 'star') {
     params.star_id = currentStarId.value
   } else {
@@ -279,7 +307,7 @@ const tagItem = async (fanhao, rateValue, event) => {
     // 刷新当前搜索结果以更新打标状态
     if (item.value && item.value.fanhao === fanhao && query.value) {
       // 番号搜索结果：重新搜索
-      const res = await $fetch('/api/search', { params: { q: query.value, page: 1 } })
+      const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
       item.value = res.item
     } else if (searchType.value) {
       // 标签/女优搜索结果：刷新当前页
