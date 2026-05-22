@@ -168,6 +168,11 @@ footer a:hover {
   border-bottom: 1px solid #e9ecef;
 }
 
+/* ===== 按钮组间距 ===== */
+.action-buttons {
+  gap: 0.4rem;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
   .card-item {
@@ -176,5 +181,57 @@ footer a:hover {
 
   .coverimg {
     margin-bottom: 0.75rem;
+  }
+
+  /* 按钮组在手机端保持一行 */
+  .card-item .row .col-12.col-md-3,
+  .card-item .row .col-12.col-sm-12.col-md-3 {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem;
+    justify-content: flex-start !important;
+    padding-top: 0.25rem;
+  }
+
+  .card-item .row .col-12.col-md-3 .btn,
+  .card-item .row .col-12.col-sm-12.col-md-3 .btn {
+    flex: 1;
+    font-size: 0.72rem;
+    padding: 0.25rem 0.4rem;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* Tab 区域紧凑 */
+  .nav-tabs .nav-link {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  /* 头部信息区 badge 缩小 */
+  .badge {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .card-item {
+    padding: 0.6rem;
+    border-radius: 8px;
+  }
+
+  .card-item h6 {
+    font-size: 0.9rem;
+  }
+
+  .btn-sm {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.4rem;
   }
 }

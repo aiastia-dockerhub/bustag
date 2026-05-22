@@ -1,25 +1,27 @@
 <template>
   <div class="container">
     <!-- Tab 切换 -->
-    <div class="d-flex align-items-center py-3 border-bottom mb-3">
-      <ul class="nav nav-tabs border-0 mb-0">
-        <li class="nav-item">
-          <a class="nav-link" :class="{ active: like === null }"
-             href="#" @click.prevent="switchTab(null)">未打标</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" :class="{ active: like === 1 }"
-             href="#" @click.prevent="switchTab(1)">👍 喜欢</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" :class="{ active: like === 0 }"
-             href="#" @click.prevent="switchTab(0)">👎 不喜欢</a>
-        </li>
-      </ul>
-      <div class="ms-auto">
-        <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
-          <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
-        </select>
+    <div class="py-3 border-bottom mb-3">
+      <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
+        <ul class="nav nav-tabs border-0 mb-0 flex-nowrap">
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === null }"
+               href="#" @click.prevent="switchTab(null)">未打标</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 1 }"
+               href="#" @click.prevent="switchTab(1)">👍 喜欢</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" :class="{ active: like === 0 }"
+               href="#" @click.prevent="switchTab(0)">👎 不喜欢</a>
+          </li>
+        </ul>
+        <div class="ms-sm-auto">
+          <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
+            <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -46,14 +48,14 @@
             <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
           </div>
         </div>
-        <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
-          <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(item.fanhao)"
+        <div class="col-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end action-buttons">
+          <button class="btn btn-outline-info btn-sm" @click="copyMagnet(item.fanhao)"
                   :disabled="!!magnetLoading[item.fanhao]">
             <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
             <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
             <template v-else>🧲 磁力</template>
           </button>
-          <button class="btn btn-outline-success btn-sm me-2" @click="tag(item.fanhao, 1, $event)">👍 喜欢</button>
+          <button class="btn btn-outline-success btn-sm" @click="tag(item.fanhao, 1, $event)">👍 喜欢</button>
           <button class="btn btn-outline-danger btn-sm" @click="tag(item.fanhao, 0, $event)">👎 不喜欢</button>
         </div>
       </div>
