@@ -212,7 +212,7 @@ def recommend():
     ids, X = prepare_predict_data()
     if len(X) == 0:
         logger.warning('no data for recommend')
-        return
+        return 0, 0
 
     count = 0
     total = len(ids)
