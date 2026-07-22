@@ -345,10 +345,9 @@ def get_items(rate_type=None, rate_value=None, page=1, page_size=10):
     items = get_tags_for_items(q)
     for item in items:
         Item.loadit(item)
-        if hasattr(item, 'item_rate'):
-            item.rate_value = item.item_rate.rate_value
-        else:
-            item.rate_value = None
+        # LEFT JOIN 无匹配时 item_rate 为 None（hasattr 仍返回 True，不能直接用 hasattr 判断）
+        item_rate = getattr(item, 'item_rate', None)
+        item.rate_value = item_rate.rate_value if item_rate else None
         items_list.append(item)
 
     total_pages = (total_items + page_size - 1) // page_size
