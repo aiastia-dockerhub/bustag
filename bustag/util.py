@@ -10,6 +10,11 @@ from urllib.parse import urljoin, urlparse
 # 抑制 tzlocal 的 /etc/timezone 弃用警告（来自 APScheduler 依赖）
 warnings.filterwarnings('ignore', message='.*tzlocal.*')
 warnings.filterwarnings('ignore', message='.*timezone.*deprecated.*')
+# 抑制 sklearn MultiLabelBinarizer 在 transform 时对未训练标签输出的
+# "unknown class(es)" 警告 —— 数据量大时单条可达数万字符，刷屏且占内存
+warnings.filterwarnings('ignore', message='.*unknown class.*')
+# 抑制 sklearn 反序列化时的版本不一致警告（模型在不同版本间加载）
+warnings.filterwarnings('ignore', message='.*Trying to unpickle estimator.*')
 
 logger = logging.getLogger('bustag')
 TESTING = False

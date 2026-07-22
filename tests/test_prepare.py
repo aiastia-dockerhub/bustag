@@ -29,7 +29,7 @@ def test_prepare_data():
 
 
 def test_prepare_predict_data():
-    ids, X = prepare_predict_data()
+    ids, X, page_info = prepare_predict_data()
     print(f'Predict data shape: {X.shape}')
     if len(X) > 0:
         print(f'Sample features: {X.iloc[0].values[:10]}')

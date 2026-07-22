@@ -5,6 +5,7 @@ create classifier model and predict
 '''
 import re
 import html
+import threading
 import numpy as np
 from sklearn.metrics import (
     f1_score, recall_score, precision_score, confusion_matrix,
@@ -14,7 +15,7 @@ from sklearn.model_selection import cross_val_score
 from lightgbm import LGBMClassifier
 from bustag.model.prepare import prepare_data, prepare_predict_data
 from bustag.model.persist import load_model, dump_model
-from bustag.spider.db import RATE_TYPE, ItemRate
+from bustag.spider.db import RATE_TYPE, ItemRate, db
 from bustag.util import logger, get_data_path, MODEL_PATH
 
 MODEL_FILE = MODEL_PATH + 'model.pkl'
@@ -22,6 +23,11 @@ FEATURE_NAMES_PATH = MODEL_PATH + 'feature_names.pkl'
 MIN_TRAIN_NUM = 200
 # 推荐阈值：预测概率 >= 此值才推荐
 RECOMMEND_THRESHOLD = 0.6
+# 分块预测的每块大小（控制内存峰值，避免 OOM）
+PREDICT_CHUNK_SIZE = 1000
+
+# 全局推荐锁：防止「用户点重新推荐」与「后台调度器自动推荐」并发跑导致内存翻倍
+_recommend_lock = threading.Lock()
 
 
 def load():
@@ -208,28 +214,73 @@ def recommend():
     '''
     use trained model to recommend items
     使用概率阈值而非硬分类，只推荐高概率喜欢的项目
+
+    优化：分块加载 + 分块预测 + 批量写入，控制内存峰值避免 OOM；
+         持有全局锁防止与后台调度器的推荐任务并发执行。
+    Returns:
+        (total, recommended) 或 None（已有推荐任务在执行，本次跳过）
     '''
-    ids, X = prepare_predict_data()
-    if len(X) == 0:
-        logger.warning('no data for recommend')
-        return 0, 0
+    # 非阻塞抢锁：若后台调度器已在推荐，立即返回 None，由调用方决定如何处理
+    if not _recommend_lock.acquire(blocking=False):
+        logger.warning('recommend() already running, skip this call')
+        return None
+
+    try:
+        return _recommend_locked()
+    finally:
+        _recommend_lock.release()
+
+
+def _recommend_locked():
+    '''实际的推荐逻辑，调用前需已持有 _recommend_lock'''
+    # 模型只加载一次，避免分块预测时每块重复读盘 model.pkl
+    model, _ = load()
 
     count = 0
-    total = len(ids)
-    y_proba = predict_proba(X)
+    total = 0
+    rate_type = RATE_TYPE.SYSTEM_RATE
+    page = 1
 
-    for item_id, prob in zip(ids, y_proba):
-        # 使用概率阈值决策
-        if prob >= RECOMMEND_THRESHOLD:
-            rate_value = 1  # LIKE
-            count += 1
-        else:
-            rate_value = 0  # DISLIKE
+    while True:
+        # 分块加载未评分数据：内存峰值 = 单块而非全量
+        ids, X, page_info = prepare_predict_data(
+            page=page, page_size=PREDICT_CHUNK_SIZE)
+        if len(X) == 0:
+            break
 
-        rate_type = RATE_TYPE.SYSTEM_RATE
-        item_rate = ItemRate(rate_type=rate_type,
-                             rate_value=rate_value, item_id=item_id)
-        item_rate.save()
+        # 用已加载的模型分块预测概率
+        y_proba = model.predict_proba(X)[:, 1]
+
+        # 收集本块写入行，单次事务批量 INSERT（替代旧的逐条 save）
+        rows = []
+        for item_id, prob in zip(ids, y_proba):
+            if prob >= RECOMMEND_THRESHOLD:
+                rate_value = 1  # LIKE
+                count += 1
+            else:
+                rate_value = 0  # DISLIKE
+            rows.append({
+                'rate_type': rate_type,
+                'rate_value': rate_value,
+                'item': item_id,
+            })
+
+        if rows:
+            with db.atomic():
+                ItemRate.insert_many(rows).execute()
+
+        total += len(ids)
+        logger.info(
+            f'recommend chunk page={page}: +{len(ids)} '
+            f'(running total={total}, recommended={count})')
+
+        # page_info = (total_items, total_pages, page, page_size)
+        if page_info is None:
+            break
+        total_items, total_pages, _, _ = page_info
+        if page >= total_pages:
+            break
+        page += 1
 
     logger.warning(
         f'predicted {total} items, recommended {count} '

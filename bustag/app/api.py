@@ -545,7 +545,16 @@ def api_re_recommend():
 
     # 2. 重新推荐
     try:
-        total, recommended = clf.recommend()
+        result = clf.recommend()
+        # recommend() 返回 None 表示已有推荐任务在执行（后台调度器正在跑）
+        if result is None:
+            _api_cache.clear()
+            return _json_response({
+                'success': False,
+                'error': '正在推荐中，请稍后再试',
+                'deleted': deleted,
+            })
+        total, recommended = result
         _api_cache.clear()
         return _json_response({
             'success': True,
