@@ -198,16 +198,14 @@ def api_re_recommend():
         logger.exception(e)
         return _json_response({'success': False, 'error': f'清理失败: {e}'})
 
-    # 2. 重新推荐（无数据时 recommend() 返回 None）
+    # 2. 重新推荐（recommend() 返回 None 表示已有推荐任务在执行）
     try:
         result = clf.recommend()
         if result is None:
             return _json_response({
-                'success': True,
+                'success': False,
                 'deleted': deleted,
-                'total': 0,
-                'recommended': 0,
-                'warning': '没有可供推荐的数据',
+                'error': '正在推荐中，请稍后再试',
             })
         total, recommended = result
         logger.info(
