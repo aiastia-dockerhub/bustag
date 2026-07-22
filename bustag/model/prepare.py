@@ -73,16 +73,25 @@ def prepare_data():
     return split_data(X, y)
 
 
-def prepare_predict_data():
+def prepare_predict_data(page=1, page_size=1000):
+    '''
+    get not rated data for prediction
+
+    Args:
+        page: 页码，从 1 开始。None 表示一次性加载全部（旧行为，不推荐用于大数据集）
+        page_size: 每页条数，默认 1000，分块预测以控制内存峰值
+    Returns:
+        (ids, X, page_info) - 当 page=None 时 page_info 为 None
+    '''
     # get not rated data
     rate_type = None
     rate_value = None
-    page = None
-    unrated_items, _ = get_items(
-        rate_type=rate_type, rate_value=rate_value, page=page)
+    unrated_items, page_info = get_items(
+        rate_type=rate_type, rate_value=rate_value, page=page,
+        page_size=page_size)
     mlb = load_model(get_data_path(BINARIZER_PATH))
     dicts = (as_dict(item) for item in unrated_items)
     df = pd.DataFrame(dicts, columns=['id', 'tags'])
     df.set_index('id', inplace=True)
     X = mlb.transform(df.tags.values)
-    return df.index.values, X
+    return df.index.values, X, page_info
