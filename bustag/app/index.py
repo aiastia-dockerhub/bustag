@@ -45,6 +45,14 @@ def _remove_extra_tags(item):
         tags_dict[t] = tags_dict[t][:limit]
 
 
+def _json_response(data):
+    """统一 JSON 响应格式"""
+    import json
+    json_str = json.dumps(data, ensure_ascii=False)
+    response.content_type = 'application/json; charset=utf-8'
+    return json_str.encode('utf-8')
+
+
 @route('/')
 def index():
     rate_type = RATE_TYPE.SYSTEM_RATE.value
@@ -160,6 +168,66 @@ def do_training():
         logger.exception(ex)
         error_msg = ' '.join(ex.args)
     return template('model', path=request.path, model_scores=model_scores, error_msg=error_msg)
+
+
+@route('/api/clear-recommend', method='POST')
+def api_clear_recommend():
+    """清理所有系统推荐记录（rate_type=SYSTEM_RATE），保留用户打标"""
+    from bustag.spider.db import ItemRate, RATE_TYPE
+    try:
+        count = ItemRate.delete().where(
+            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
+        ).execute()
+        logger.info(f'cleared {count} system recommend records')
+        return _json_response({'success': True, 'deleted': count})
+    except Exception as e:
+        logger.exception(e)
+        return _json_response({'success': False, 'error': str(e)})
+
+
+@route('/api/re-recommend', method='POST')
+def api_re_recommend():
+    """清理旧推荐 + 用当前模型重新推荐"""
+    from bustag.spider.db import ItemRate, RATE_TYPE
+    import bustag.model.classifier as clf
+
+    # 1. 清理旧推荐
+    try:
+        deleted = ItemRate.delete().where(
+            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
+        ).execute()
+    except Exception as e:
+        logger.exception(e)
+        return _json_response({'success': False, 'error': f'清理失败: {e}'})
+
+    # 2. 重新推荐（无数据时 recommend() 返回 None）
+    try:
+        result = clf.recommend()
+        if result is None:
+            return _json_response({
+                'success': True,
+                'deleted': deleted,
+                'total': 0,
+                'recommended': 0,
+                'warning': '没有可供推荐的数据',
+            })
+        total, recommended = result
+        logger.info(
+            f're-recommend done: deleted={deleted}, '
+            f'total={total}, recommended={recommended}')
+        return _json_response({
+            'success': True,
+            'deleted': deleted,
+            'total': total,
+            'recommended': recommended,
+        })
+    except Exception as e:
+        logger.exception(e)
+        return _json_response({
+            'success': False,
+            'error': f'推荐失败: {e}',
+            'deleted': deleted,
+        })
 
 
 @route('/local_fanhao', method=['GET', 'POST'])
