@@ -26,6 +26,21 @@
               <div v-if="error" class="card-body text-danger">{{ error }}</div>
               <div v-if="training" class="card-body text-info">正在训练中，请稍候...</div>
 
+              <!-- 推荐数据管理 -->
+              <hr class="my-3">
+              <h6 class="card-title">推荐数据管理</h6>
+              <p class="card-text text-muted">训练新模型后，旧推荐结果不会自动更新。可在此清理旧推荐，再用当前模型重新生成推荐。</p>
+              <button class="btn btn-warning me-2" @click="clearRecommend" :disabled="recommendBusy">
+                {{ recommendBusy ? '处理中...' : '清理旧推荐' }}
+              </button>
+              <button class="btn btn-success" @click="reRecommend" :disabled="recommendBusy">
+                {{ recommendBusy ? '处理中...' : '重新推荐' }}
+              </button>
+              <div v-if="recommendResult" class="mt-2 small"
+                   :class="recommendResult.success ? 'text-success' : 'text-danger'">
+                {{ recommendResultMsg }}
+              </div>
+
               <!-- 当前模型数据 -->
               <div class="card-header"><h6>当前模型数据</h6></div>
               <div v-if="scores" class="card-body">
@@ -119,6 +134,46 @@ const trainModel = async () => {
     training.value = false
   }
 }
+
+// 推荐数据管理
+const recommendBusy = ref(false)
+const recommendResult = ref(null)
+
+const recommendResultMsg = computed(() => {
+  const r = recommendResult.value
+  if (!r) return ''
+  if (!r.success) return '失败：' + (r.error || '未知错误')
+  let msg = `已清理 ${r.deleted} 条旧推荐`
+  if (r.total !== undefined) {
+    msg += `，重新推荐 ${r.recommended} / ${r.total} 条`
+  }
+  if (r.warning) msg += `（${r.warning}）`
+  return msg
+})
+
+const callRecommendApi = async (url, confirmMsg) => {
+  if (!confirm(confirmMsg)) return
+  recommendBusy.value = true
+  recommendResult.value = null
+  try {
+    const res = await $fetch(url, { method: 'POST', timeout: 300000 })
+    recommendResult.value = res
+  } catch (e) {
+    recommendResult.value = { success: false, error: e.message }
+  } finally {
+    recommendBusy.value = false
+  }
+}
+
+const clearRecommend = () => callRecommendApi(
+  '/api/clear-recommend',
+  '确认清理所有系统推荐记录？\n（用户打标数据会保留）'
+)
+
+const reRecommend = () => callRecommendApi(
+  '/api/re-recommend',
+  '确认清理旧推荐并用当前模型重新推荐？\n（用户打标数据会保留）'
+)
 
 onMounted(() => loadModel())
 </script>
