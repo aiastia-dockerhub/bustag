@@ -79,7 +79,7 @@ def recommend():
     if len(X) == 0:
         logger.warning(
             f'no data for recommend')
-        return
+        return 0, 0
     count = 0
     total = len(ids)
     y_pred = predict(X)
