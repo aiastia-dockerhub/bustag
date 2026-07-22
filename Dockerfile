@@ -1,8 +1,8 @@
 # ===== Stage 1: Build Nuxt Frontend =====
 FROM node:22-slim AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 COPY frontend/ ./
 RUN NUXT_TELEMETRY_DISABLED=1 npm run build
 
