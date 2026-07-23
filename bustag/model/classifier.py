@@ -105,12 +105,17 @@ def _recommend_locked():
     count = 0
     total = 0
     rate_type = RATE_TYPE.SYSTEM_RATE
-    page = 1
 
+    # 关键：始终取 page=1。因为我们处理完一块就会给这些项写入 ItemRate 记录，
+    # 它们随即从未评分集合消失；下一轮 page=1 自然取到下一批未评分项。
+    # 若改成 page=1,2,3... 递增，由于每轮数据集都在缩小，OFFSET 会错位、跳过大量项。
+    # （相当于边遍历边删除，必须每次从头取。）
+    batch_no = 0
     while True:
+        batch_no += 1
         # 分块加载未评分数据：内存峰值 = 单块而非全量
-        ids, X, page_info = prepare_predict_data(
-            page=page, page_size=PREDICT_CHUNK_SIZE)
+        ids, X, _ = prepare_predict_data(
+            page=1, page_size=PREDICT_CHUNK_SIZE)
         if len(X) == 0:
             break
 
@@ -134,16 +139,12 @@ def _recommend_locked():
 
         total += len(ids)
         logger.info(
-            f'recommend chunk page={page}: +{len(ids)} '
+            f'recommend batch={batch_no}: +{len(ids)} '
             f'(running total={total}, recommended={count})')
 
-        # page_info = (total_items, total_pages, page, page_size)
-        if page_info is None:
+        # 本块不足一页，说明未评分数据已处理完
+        if len(ids) < PREDICT_CHUNK_SIZE:
             break
-        total_items, total_pages, _, _ = page_info
-        if page >= total_pages:
-            break
-        page += 1
 
     logger.warning(
         f'predicted {total} items, recommended {count}')
