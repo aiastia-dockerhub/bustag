@@ -3,6 +3,7 @@ Bustag REST API - JSON 接口，供 Vue 前端调用
 """
 import os
 import sys
+import re
 import hashlib
 import threading
 import time
@@ -83,6 +84,24 @@ def _page_info_to_dict(page_info):
         'max_page': page_info[1],
         'current_page': page_info[2],
     }
+
+
+# 番号规范化正则：与 bustag/app/local.py 的上传流程保持一致
+_FANHAO_PATTERN = re.compile(r'([A-Z]+)-?([0-9]+)')
+
+
+def _normalize_fanhao(raw):
+    '''
+    规范化番号输入：转大写并补齐连字符。
+    例: 'ssis-001' -> 'SSIS-001', 'SSIS001' -> 'SSIS-001'
+    无法识别出「字母+数字」结构时返回 None（交由模糊匹配兜底）。
+    '''
+    fanhao = raw.strip().upper()
+    match = _FANHAO_PATTERN.search(fanhao)
+    if match and len(match.groups()) == 2:
+        series, num = match.groups()
+        return f'{series}-{num}'
+    return None
 
 
 def _json_response(data):
@@ -392,14 +411,20 @@ def api_search():
     tag_value = ''
 
     if query:
-        item = Item.get_by_fanhao(query)
+        # 规范化番号（大写 + 补连字符），尽量精确命中
+        normalized = _normalize_fanhao(query)
+        item = Item.get_by_fanhao(normalized) if normalized else None
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
             # 查询打标状态
-            item_rate = db_module.ItemRate.get_by_fanhao(query)
+            item_rate = db_module.ItemRate.get_by_fanhao(item.fanhao)
             item.rate_value = item_rate.rate_value if item_rate else None
             item.rate_type = item_rate.rate_type if item_rate else None
+        else:
+            # 精确未命中，按关键词模糊搜索（SQLite LIKE 默认大小写不敏感）
+            tag_items = Item.search_by_fanhao(query.strip().upper())
+            _enrich_items_with_rate(tag_items)
     elif tag_id:
         tag_items, page_info = db_module.get_items_by_tag_id(
             int(tag_id), page=page, rate_filter=rate_filter or None)

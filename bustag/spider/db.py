@@ -121,6 +121,20 @@ class Item(BaseModel):
         return item
 
     @staticmethod
+    def search_by_fanhao(keyword, limit=50):
+        '''
+        模糊搜索番号，返回已加载标签与封面信息的 item 列表。
+        SQLite 的 LIKE 默认对 ASCII 大小写不敏感，故 keyword 大小写均可。
+        '''
+        query = Item.select().where(Item.fanhao.contains(keyword)).limit(limit)
+        items = get_tags_for_items(query)
+        items_list = []
+        for item in items:
+            Item.loadit(item)
+            items_list.append(item)
+        return items_list
+
+    @staticmethod
     def get_tags_dict(item):
         tags_dict = defaultdict(list)
         for t in item.tags_list:

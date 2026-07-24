@@ -92,7 +92,7 @@
     <template v-if="tagItems.length > 0">
       <div class="py-2">
         <h6 class="fw-bold">
-          {{ searchType === 'star' ? '👩 女优' : '🏷️ 标签' }}「{{ currentTag }}」共 {{ tagPageInfo?.total_items || 0 }} 条
+          {{ searchType === 'star' ? '👩 女优' : searchType === 'fanhao' ? '🔍 番号' : '🏷️ 标签' }}「{{ currentTag }}」共 {{ tagPageInfo?.total_items || tagItems.length || 0 }} 条
         </h6>
       </div>
       <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
@@ -135,7 +135,7 @@
           </div>
         </div>
       </div>
-      <Pagination :pageInfo="tagPageInfo" @go-page="goTagPage" />
+      <Pagination v-if="tagPageInfo" :pageInfo="tagPageInfo" @go-page="goTagPage" />
     </template>
 
     <!-- 标签搜索无结果 -->
@@ -208,6 +208,14 @@ const doSearch = async () => {
   try {
     const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
     item.value = res.item
+    // 精确未命中时，展示后端模糊匹配到的多条结果
+    if (!res.item && res.tag_items && res.tag_items.length > 0) {
+      tagItems.value = res.tag_items
+      tagPageInfo.value = res.page_info || null
+      currentTag.value = query.value
+      searchType.value = 'fanhao'
+      searched.value = false
+    }
     genreTags.value = res.genre_tags || genreTags.value
     starTags.value = res.star_tags || starTags.value
   } catch (e) {
@@ -306,9 +314,14 @@ const tagItem = async (fanhao, rateValue, event) => {
     })
     // 刷新当前搜索结果以更新打标状态
     if (item.value && item.value.fanhao === fanhao && query.value) {
-      // 番号搜索结果：重新搜索
+      // 番号精确搜索结果：重新搜索
       const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
       item.value = res.item
+    } else if (searchType.value === 'fanhao' && query.value) {
+      // 番号模糊搜索结果：重新模糊搜索刷新列表
+      const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
+      tagItems.value = res.tag_items || []
+      tagPageInfo.value = res.page_info || null
     } else if (searchType.value) {
       // 标签/女优搜索结果：刷新当前页
       await refreshTagResults()
