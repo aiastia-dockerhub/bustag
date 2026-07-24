@@ -4,6 +4,7 @@ persist data to db
 '''
 from datetime import date
 import datetime
+import re
 import operator
 from functools import reduce
 import json
@@ -13,6 +14,24 @@ from collections import defaultdict
 from bustag.util import logger, get_data_path, format_datetime, get_now_time, get_full_url
 
 DB_FILE = 'bus.db'
+
+
+# 番号规范化正则：与 bustag/app/local.py 的上传流程保持一致
+_FANHAO_PATTERN = re.compile(r'([A-Z]+)-?([0-9]+)')
+
+
+def normalize_fanhao(raw):
+    '''
+    规范化番号输入：转大写并补齐连字符。
+    例: 'ssis-001' -> 'SSIS-001', 'SSIS001' -> 'SSIS-001'
+    无法识别出「字母+数字」结构时返回 None（交由模糊匹配兜底）。
+    '''
+    fanhao = raw.strip().upper()
+    match = _FANHAO_PATTERN.search(fanhao)
+    if match and len(match.groups()) == 2:
+        series, num = match.groups()
+        return f'{series}-{num}'
+    return None
 
 
 def _create_db():

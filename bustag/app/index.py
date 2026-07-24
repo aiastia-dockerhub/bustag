@@ -396,8 +396,9 @@ def search():
     page_info = None
 
     if query:
-        # 先做番号精确搜索；未命中时按关键词搜索（番号/标题/标签）
-        item = Item.get_by_fanhao(query)
+        # 规范化番号（大写 + 补连字符），尽量精确命中；未命中时按关键词搜索
+        normalized = db.normalize_fanhao(query)
+        item = Item.get_by_fanhao(normalized) if normalized else None
         if item:
             Item.loadit(item)
             Item.get_tags_dict(item)
