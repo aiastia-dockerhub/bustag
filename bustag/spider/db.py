@@ -4,6 +4,7 @@ persist data to db
 '''
 from datetime import date
 import datetime
+import re
 import operator
 from functools import reduce
 import json
@@ -13,6 +14,24 @@ from collections import defaultdict
 from bustag.util import logger, get_data_path, format_datetime, get_now_time, get_full_url
 
 DB_FILE = 'bus.db'
+
+
+# 番号规范化正则：与 bustag/app/local.py 的上传流程保持一致
+_FANHAO_PATTERN = re.compile(r'([A-Z]+)-?([0-9]+)')
+
+
+def normalize_fanhao(raw):
+    '''
+    规范化番号输入：转大写并补齐连字符。
+    例: 'ssis-001' -> 'SSIS-001', 'SSIS001' -> 'SSIS-001'
+    无法识别出「字母+数字」结构时返回 None（交由模糊匹配兜底）。
+    '''
+    fanhao = raw.strip().upper()
+    match = _FANHAO_PATTERN.search(fanhao)
+    if match and len(match.groups()) == 2:
+        series, num = match.groups()
+        return f'{series}-{num}'
+    return None
 
 
 def _create_db():
@@ -119,6 +138,20 @@ class Item(BaseModel):
     def get_by_fanhao(fanhao):
         item = Item.get_or_none(Item.fanhao == fanhao)
         return item
+
+    @staticmethod
+    def search_by_fanhao(keyword, limit=50):
+        '''
+        模糊搜索番号，返回已加载标签与封面信息的 item 列表。
+        SQLite 的 LIKE 默认对 ASCII 大小写不敏感，故 keyword 大小写均可。
+        '''
+        query = Item.select().where(Item.fanhao.contains(keyword)).limit(limit)
+        items = get_tags_for_items(query)
+        items_list = []
+        for item in items:
+            Item.loadit(item)
+            items_list.append(item)
+        return items_list
 
     @staticmethod
     def get_tags_dict(item):
