@@ -68,25 +68,35 @@ export function saveAria2Config(cfg: { rpcUrl: string; secret: string; dir: stri
  *   无认证：[<arg1>, <arg2>, ...]
  */
 async function aria2Call(rpcUrl: string, method: string, args: any[] = [], secret = '', timeoutMs = 10000) {
+  // 强制去除 secret 首尾空白/不可见字符（输入法或粘贴常带入，否则 Aria2 返回 Unauthorized）
+  const cleanSecret = (secret || '').trim()
   const params: any[] = []
-  if (secret) params.push('token:' + secret)
+  if (cleanSecret) params.push('token:' + cleanSecret)
   params.push(...args)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
+    const payload = {
+      jsonrpc: '2.0',
+      id: 'bustag',
+      method,
+      params,
+    }
+    // 调试：打印实际发送的 params（secret 已脱敏），便于排查 400/Unauthorized
+    console.log('[Aria2 RPC]', rpcUrl, method, {
+      ...payload,
+      params: params.map(p => typeof p === 'string' && p.startsWith('token:')
+        ? 'token:***(' + p.slice(6).length + ' chars)' : p),
+    })
     const resp = await fetch(rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'bustag',
-        method,
-        params,
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     })
     const data = await resp.json()
+    console.log('[Aria2 RPC] response', method, resp.status, data)
     return data
   } finally {
     clearTimeout(timer)

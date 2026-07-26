@@ -9,29 +9,38 @@
         </div>
 
         <div class="aria2-modal-body">
-          <div class="mb-3">
-            <label class="form-label fw-bold">RPC 地址</label>
-            <input v-model="form.rpcUrl" type="text" class="form-control"
-                   placeholder="https://your-domain.com （只需填根地址，/jsonrpc 会自动补全）" />
-            <div class="form-text">
-              只需填 Aria2 服务的根地址，<code>/jsonrpc</code> 路径会自动补全。
-              HTTPS 页面只能调 HTTPS 接口（否则会被浏览器拦截）。
+          <form @submit.prevent>
+            <div class="mb-3">
+              <label class="form-label fw-bold">RPC 地址</label>
+              <input v-model="form.rpcUrl" type="text" class="form-control"
+                     placeholder="https://your-domain.com （只需填根地址，/jsonrpc 会自动补全）"
+                     autocomplete="off" />
+              <div class="form-text">
+                只需填 Aria2 服务的根地址，<code>/jsonrpc</code> 路径会自动补全。
+                HTTPS 页面只能调 HTTPS 接口（否则会被浏览器拦截）。
+              </div>
             </div>
-          </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">Secret Token <span class="text-muted fw-normal">(可选)</span></label>
-            <input v-model="form.secret" type="password" class="form-control"
-                   placeholder="Aria2 启动的 --rpc-secret 值" autocomplete="off" />
-            <div class="form-text">Aria2 配置了 rpc-secret 时填写，留空表示无认证。</div>
-          </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Secret Token <span class="text-muted fw-normal">(可选)</span></label>
+              <div class="input-group">
+                <input v-model="form.secret" :type="showSecret ? 'text' : 'password'" class="form-control"
+                       placeholder="Aria2 启动的 --rpc-secret 值" autocomplete="new-password" />
+                <button class="btn btn-outline-secondary" type="button" @click="showSecret = !showSecret"
+                        :title="showSecret ? '隐藏' : '显示'">
+                  {{ showSecret ? '🙈' : '👁️' }}
+                </button>
+              </div>
+              <div class="form-text">Aria2 配置了 rpc-secret 时填写，留空表示无认证。</div>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">下载目录 <span class="text-muted fw-normal">(可选)</span></label>
-            <input v-model="form.dir" type="text" class="form-control"
-                   placeholder="留空则用 Aria2 默认目录" />
-            <div class="form-text">推送任务时指定的保存路径，如 <code>/downloads</code>。</div>
-          </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">下载目录 <span class="text-muted fw-normal">(可选)</span></label>
+              <input v-model="form.dir" type="text" class="form-control"
+                     placeholder="留空则用 Aria2 默认目录" autocomplete="off" />
+              <div class="form-text">推送任务时指定的保存路径，如 <code>/downloads</code>。</div>
+            </div>
+          </form>
 
           <!-- 测试连接反馈 -->
           <div v-if="testResult" class="alert"
@@ -66,6 +75,9 @@ const form = reactive({
   secret: secret.value,
   dir: dir.value,
 })
+
+// 密码显隐切换
+const showSecret = ref(false)
 
 // 打开弹框时同步最新配置
 watch(settingsVisible, (v) => {
