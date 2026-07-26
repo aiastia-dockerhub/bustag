@@ -12,9 +12,10 @@
           <div class="mb-3">
             <label class="form-label fw-bold">RPC 地址</label>
             <input v-model="form.rpcUrl" type="text" class="form-control"
-                   placeholder="https://your-domain.com/jsonrpc 或 http://192.168.1.x:6800/jsonrpc" />
+                   placeholder="https://your-domain.com （只需填根地址，/jsonrpc 会自动补全）" />
             <div class="form-text">
-              完整的 JSON-RPC 接口地址。HTTPS 页面只能调 HTTPS 接口（否则会被浏览器拦截）。
+              只需填 Aria2 服务的根地址，<code>/jsonrpc</code> 路径会自动补全。
+              HTTPS 页面只能调 HTTPS 接口（否则会被浏览器拦截）。
             </div>
           </div>
 
@@ -90,13 +91,14 @@ const onTest = async () => {
 }
 
 const onSave = () => {
-  saveAria2Config({
+  // saveAria2Config 返回规范化后的 RPC 地址（自动补 /jsonrpc）
+  const normalized = saveAria2Config({
     rpcUrl: form.rpcUrl,
     secret: form.secret,
     dir: form.dir,
   })
   // 同步到全局响应式状态（当前页面立即生效）
-  rpcUrl.value = form.rpcUrl.trim()
+  rpcUrl.value = normalized
   secret.value = form.secret.trim()
   dir.value = form.dir.trim()
   closeSettings()
