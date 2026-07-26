@@ -30,6 +30,9 @@
             <li class="nav-item">
               <NuxtLink class="nav-link" :class="{ active: $route.path === '/search' }" to="/search">🔍 搜索</NuxtLink>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" @click.prevent="openSettings">⚙️ Aria2</a>
+            </li>
           </ul>
         </div>
       </div>
@@ -55,6 +58,9 @@
       </div>
     </ClientOnly>
 
+    <!-- Aria2 设置弹框 -->
+    <Aria2SettingsModal />
+
     <!-- 页脚 -->
     <footer class="py-3 mt-4">
       <div class="container">
@@ -78,4 +84,5 @@ const globalMsg = ref('')
 const config = useRuntimeConfig()
 const version = config.public.appVersion || 'dev'
 const { modalUrl, hideImage } = useImageModal()
+const { openSettings } = useAria2Settings()
 </script>

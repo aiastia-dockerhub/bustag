@@ -53,6 +53,12 @@
             <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
             <template v-else>🧲 磁力</template>
           </button>
+          <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(item.fanhao)"
+                  :disabled="!!aria2Loading[item.fanhao]">
+            <template v-if="aria2Loading[item.fanhao] === 'done'">✅ 已发送</template>
+            <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
+            <template v-else>⬇️ Aria2</template>
+          </button>
           <button class="btn btn-outline-success btn-sm" @click="correct(item.fanhao, true, $event)">
             ✅ 正确
           </button>
@@ -76,6 +82,7 @@
 <script setup>
 const { showImage } = useImageModal()
 const { magnetLoading, copyMagnet } = useMagnet()
+const { aria2Loading, sendToAria2 } = useAria2()
 
 const items = ref([])
 const pageInfo = ref(null)
