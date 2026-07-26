@@ -24,9 +24,15 @@ export function useAria2Settings() {
 
 /** Aria2 配置（响应式，自动从 localStorage 读/写） */
 export function useAria2Config() {
-  const rpcUrl = ref(localStorage.getItem(LS_RPC_URL) || '')
-  const secret = ref(localStorage.getItem(LS_SECRET) || '')
-  const dir = ref(localStorage.getItem(LS_DIR) || '')
+  const rpcUrl = ref('')
+  const secret = ref('')
+  const dir = ref('')
+  // 仅在浏览器端读取 localStorage（SSR 时不存在，否则会报 500）
+  if (import.meta.client) {
+    rpcUrl.value = localStorage.getItem(LS_RPC_URL) || ''
+    secret.value = localStorage.getItem(LS_SECRET) || ''
+    dir.value = localStorage.getItem(LS_DIR) || ''
+  }
   return { rpcUrl, secret, dir }
 }
 
