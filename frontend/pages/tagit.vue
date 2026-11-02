@@ -1,159 +1,135 @@
 <template>
-  <div class="container">
-    <!-- Tab 切换 -->
-    <div class="py-3 border-bottom mb-3">
-      <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
-        <ul class="nav nav-tabs border-0 mb-0 flex-nowrap">
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === null }"
-               href="#" @click.prevent="switchTab(null)">未打标</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === 1 }"
-               href="#" @click.prevent="switchTab(1)">👍 喜欢</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" :class="{ active: like === 0 }"
-               href="#" @click.prevent="switchTab(0)">👎 不喜欢</a>
-          </li>
-        </ul>
-        <div class="ms-sm-auto">
-          <select class="form-select form-select-sm" style="width: auto;" v-model="movieType" @change="onTypeChange">
-            <option v-for="mt in movieTypes" :key="mt" :value="mt">{{ mt === 'normal' ? '有码' : '无码' }}</option>
-          </select>
-        </div>
+  <div class="library-page">
+    <div class="library-toolbar">
+      <div class="segmented-control" aria-label="打标状态">
+        <button
+          :class="{ active: like === null }"
+          :aria-pressed="like === null"
+          @click="switchTab(null)"
+        >
+          未打标
+        </button>
+        <button
+          :class="{ active: like === 1 }"
+          :aria-pressed="like === 1"
+          @click="switchTab(1)"
+        >
+          喜欢
+        </button>
+        <button
+          :class="{ active: like === 0 }"
+          :aria-pressed="like === 0"
+          @click="switchTab(0)"
+        >
+          不喜欢
+        </button>
       </div>
+      <label class="type-filter"
+        >影片类型<select
+          class="form-select"
+          v-model="movieType"
+          @change="onTypeChange"
+        >
+          <option v-for="mt in movieTypes" :key="mt" :value="mt">
+            {{ mt === "normal" ? "有码" : "无码" }}
+          </option>
+        </select></label
+      >
     </div>
-
-    <!-- 列表 -->
-    <div v-for="(item, index) in items" :key="item.fanhao" class="card-item">
-      <div class="row g-3">
-        <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <CoverImage :src="item.cover_img_url" :referer="item.url" :priority="index === 0" @click="showImg(item.cover_img_url, item.url)" />
-        </div>
-        <div class="col-12 col-sm-6 col-md-7 col-lg-8 col-xl-5 d-flex flex-column">
-          <h6 class="mb-1 fw-bold">{{ item.fanhao }}</h6>
-          <a :href="item.url" target="_blank" class="text-decoration-none small mb-2 text-truncate d-inline-block" style="max-width: 100%;">
-            {{ item.title || '' }}
-          </a>
-          <div class="small text-muted mb-1">
-            <span class="me-3">📅 发行: {{ item.release_date || '-' }}</span>
-            <span>📥 添加: {{ item.add_date || '-' }}</span>
-          </div>
-          <div class="mt-1" v-if="item.tags_dict?.genre?.length">
-            <span v-for="t in item.tags_dict.genre" :key="t" class="badge bg-primary bg-opacity-75 badge-tag me-1 mb-1">{{ t }}</span>
-          </div>
-          <div class="mt-1" v-if="item.tags_dict?.star?.length">
-            <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
-          </div>
-        </div>
-        <div class="col-12 col-xl-3 d-flex align-items-center">
-          <div class="action-buttons" role="group" aria-label="影片操作">
-            <button class="btn btn-outline-info btn-sm" @click="copyMagnet(item.fanhao)"
-                    :disabled="!!magnetLoading[item.fanhao]">
-              <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
-              <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
-              <template v-else>🧲 磁力</template>
-            </button>
-            <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(item.fanhao)"
-                    :disabled="!!aria2Loading[item.fanhao]">
-              <template v-if="aria2Loading[item.fanhao] === 'done'">✅ 已发送</template>
-              <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
-              <template v-else>⬇️ Aria2</template>
-            </button>
-            <button class="btn btn-outline-warning btn-sm" @click="sendTo115(item.fanhao)"
-                    :disabled="!!push115Loading[item.fanhao]">
-              <template v-if="push115Loading[item.fanhao] === 'done'">✅ 已推送</template>
-              <template v-else-if="push115Loading[item.fanhao]">⏳</template>
-              <template v-else>☁️ 115</template>
-            </button>
-            <button class="btn btn-outline-success btn-sm" @click="tag(item.fanhao, 1, $event)">👍 喜欢</button>
-            <button class="btn btn-outline-danger btn-sm" @click="tag(item.fanhao, 0, $event)">👎 不喜欢</button>
-          </div>
-        </div>
-      </div>
+    <div class="list-caption">
+      <span>{{ pageInfo?.total_items || 0 }} 部影片</span
+      ><span>每一次打标，都在完善你的偏好</span>
     </div>
-
-    <!-- 空状态 -->
-    <div v-if="!items.length" class="text-center py-5 text-muted">
-      <p class="fs-4">📭 暂无数据</p>
+    <div class="movie-list">
+      <MovieCard
+        v-for="(item, index) in items"
+        :key="item.fanhao"
+        :item="item"
+        :priority="index === 0"
+        :status-label="
+          like === null ? '待打标' : like === 1 ? '已喜欢' : '不喜欢'
+        "
+        mode="tag"
+        :busy="!!ratingBusy[item.fanhao]"
+        @rate="tag"
+      />
     </div>
-
-    <!-- 分页 -->
+    <EmptyState
+      v-if="!items.length"
+      title="这一栏暂时没有影片"
+      description="切换打标状态或影片类型，看看其他内容。"
+      icon="tag"
+    />
     <Pagination :pageInfo="pageInfo" @go-page="goPage" />
   </div>
 </template>
 
 <script setup>
-const { showImage } = useImageModal()
-const { magnetLoading, copyMagnet } = useMagnet()
-const { aria2Loading, sendToAria2 } = useAria2()
-const { pushLoading: push115Loading, sendTo115 } = use115Push()
+const ratingBusy = ref({});
+const { notify } = useNotifications();
 
-const items = ref([])
-const pageInfo = ref(null)
-const like = ref(null)
-const movieTypes = ref(['normal'])
-const movieType = ref('normal')
-
-const showImg = (url, referer) => showImage(imgProxyUrl(url, 0, referer))
+const items = ref([]);
+const pageInfo = ref(null);
+const like = ref(null);
+const movieTypes = ref(["normal"]);
+const movieType = ref("normal");
 
 const applyResponse = (res) => {
-    items.value = res.items
-    pageInfo.value = res.page_info
-    movieTypes.value = res.movie_types
-    movieType.value = res.movie_type
-}
+  items.value = res.items;
+  pageInfo.value = res.page_info;
+  movieTypes.value = res.movie_types;
+  movieType.value = res.movie_type;
+};
 
-let listController
-onBeforeUnmount(() => listController?.abort())
+let listController;
+onBeforeUnmount(() => listController?.abort());
 
 const loadData = async (page = 1) => {
-  listController?.abort()
-  listController = new AbortController()
+  listController?.abort();
+  listController = new AbortController();
   try {
-    const params = { page, type: movieType.value }
-    if (like.value !== null) params.like = like.value
-    const res = await $fetch('/api/tagit', { params, signal: listController.signal })
-    applyResponse(res)
+    const params = { page, type: movieType.value };
+    if (like.value !== null) params.like = like.value;
+    const res = await $fetch("/api/tagit", {
+      params,
+      signal: listController.signal,
+    });
+    applyResponse(res);
   } catch (e) {
-    if (e.name === 'AbortError') return
-    handle401(e)
-    console.error('加载打标数据失败:', e)
+    if (e.name === "AbortError") return;
+    handle401(e);
+    console.error("加载打标数据失败:", e);
   }
-}
+};
 
 const switchTab = (lk) => {
-  like.value = lk
-  loadData(1)
-}
+  like.value = lk;
+  loadData(1);
+};
 
-const onTypeChange = () => loadData(1)
-const goPage = (page) => loadData(page)
+const onTypeChange = () => loadData(1);
+const goPage = (page) => loadData(page);
 
-const tag = async (fanhao, rateValue, event) => {
-  const btn = event?.target
-  if (btn) {
-    btn.disabled = true
-    btn.innerHTML = '⏳'
-  }
+const tag = async (fanhao, rateValue) => {
+  if (ratingBusy.value[fanhao]) return;
+  ratingBusy.value[fanhao] = true;
   try {
     await $fetch(`/api/tag/${fanhao}`, {
-      method: 'POST',
+      method: "POST",
       body: { rate_value: rateValue },
-    })
-    const page = pageInfo.value?.current_page || 1
-    loadData(page)
+    });
+    const page = pageInfo.value?.current_page || 1;
+    await loadData(page);
   } catch (e) {
-    console.error('打标失败:', e)
-    if (btn) {
-      btn.disabled = false
-      btn.textContent = rateValue === 1 ? '👍 喜欢' : '👎 不喜欢'
-    }
-    alert('打标失败: ' + (e.data?.status || e.message))
+    if (!handle401(e))
+      notify("error", `${fanhao} · 操作失败：${e.data?.error || e.message}`);
+  } finally {
+    ratingBusy.value[fanhao] = false;
   }
-}
+};
 
-const { data: initial } = await useFetch('/api/tagit', { params: { page: 1, type: movieType.value } })
-if (initial.value) applyResponse(initial.value)
+const { data: initial } = await useFetch("/api/tagit", {
+  params: { page: 1, type: movieType.value },
+});
+if (initial.value) applyResponse(initial.value);
 </script>

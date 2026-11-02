@@ -1,108 +1,149 @@
 <template>
-  <div class="d-flex flex-column min-vh-100">
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container">
-        <NuxtLink class="navbar-brand d-flex align-items-center" to="/">
-          <img src="/logo.png" alt="Bustag" height="32" class="me-2" />
-          <strong>Bustag</strong>
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <NuxtLink class="brand" to="/" aria-label="Bustag 首页"
+        ><span class="brand-mark"><AppIcon name="library" /></span
+        ><span>Bustag<small>你的私人影音资料库</small></span></NuxtLink
+      >
+      <span class="sidebar-caption">资料库</span>
+      <nav class="main-navigation" aria-label="主导航">
+        <NuxtLink
+          v-for="entry in navigation"
+          :key="entry.path"
+          :to="entry.path"
+          :class="{ 'is-active': isActive(entry.path) }"
+          :aria-current="isActive(entry.path) ? 'page' : undefined"
+        >
+          <AppIcon :name="entry.icon" /><span>{{ entry.label }}</span
+          ><span v-if="isActive(entry.path)" class="nav-active-dot"></span>
         </NuxtLink>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="sidebar-caption">下载服务</span>
+        <div class="service-buttons">
+          <button aria-label="Aria2 下载设置" @click="openSettings">
+            <AppIcon name="download" /><span>Aria2 设置</span
+            ><AppIcon name="settings" />
+          </button>
+          <button aria-label="115 云下载设置" @click="open115Settings">
+            <AppIcon name="cloud" /><span>115 云下载</span
+            ><AppIcon name="settings" />
+          </button>
+        </div>
+        <button
+          v-if="auth.enabled && auth.authed"
+          class="logout-button"
+          aria-label="退出登录"
+          @click="logout"
+        >
+          <AppIcon name="logout" />退出登录
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav ms-auto">
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/' }" to="/">🏠 推荐</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/tagit' }" to="/tagit">🏷️ 打标</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/local' || $route.path === '/local_fanhao' }" to="/local">📂 本地</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/model' }" to="/model">🤖 模型</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/load_db' }" to="/load_db">💾 数据</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <NuxtLink class="nav-link" :class="{ active: $route.path === '/search' }" to="/search">🔍 搜索</NuxtLink>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" @click.prevent="openSettings">⚙️ Aria2</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" @click.prevent="open115Settings">☁️ 115</a>
-            </li>
-            <li class="nav-item" v-if="auth.enabled && auth.authed">
-              <a class="nav-link text-warning" href="#" @click.prevent="onLogout">🚪 登出</a>
-            </li>
-          </ul>
+        <div class="sidebar-footer">
+          <span>Bustag · {{ version }}</span
+          ><a
+            href="https://github.com/aiastia-dockerhub/bustag"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="查看 GitHub 项目"
+            ><AppIcon name="external"
+          /></a>
         </div>
       </div>
-    </nav>
-
-    <!-- 消息提示 -->
-    <div class="container mt-3" v-if="globalMsg">
-      <div class="alert alert-success alert-dismissible fade show" role="alert">
-        ✅ {{ globalMsg }}
-        <button type="button" class="btn-close" @click="globalMsg = ''"></button>
-      </div>
+    </aside>
+    <div class="workspace">
+      <header class="workspace-topbar">
+        <span
+          >我的资料库 <span class="breadcrumb-separator">/</span>
+          {{ current.label }}</span
+        ><NuxtLink to="/search" class="quick-search"
+          ><AppIcon name="search" />搜索影片</NuxtLink
+        >
+      </header>
+      <main id="main-content" class="workspace-main">
+        <header class="page-heading">
+          <div>
+            <span class="page-eyebrow">{{ current.eyebrow }}</span>
+            <h1>{{ current.title }}</h1>
+            <p>{{ current.description }}</p>
+          </div>
+          <span class="heading-icon"><AppIcon :name="current.icon" /></span>
+        </header>
+        <slot />
+      </main>
+      <footer class="workspace-footer">
+        每一次选择，都让推荐更懂你。<span>Bustag</span>
+      </footer>
     </div>
-
-    <!-- 页面内容 -->
-    <main class="flex-grow-1">
-      <NuxtPage @message="globalMsg = $event" />
-    </main>
-
-    <!-- 图片放大模态框（纯 Vue，不依赖 Bootstrap JS） -->
-    <ClientOnly>
-      <div v-if="modalUrl" class="img-modal-overlay" @click="hideImage">
-        <img :src="modalUrl" alt="preview" />
-      </div>
-    </ClientOnly>
-
+    <ClientOnly><ImagePreview /></ClientOnly>
     <AppNotifications />
-
-    <!-- Aria2 设置弹框 -->
     <Aria2SettingsModal />
-
-    <!-- 115 云下载设置弹框 -->
     <Open115SettingsModal />
-
-    <!-- 页脚 -->
-    <footer class="py-3 mt-4">
-      <div class="container">
-        <div class="text-center">
-          <p class="mb-1">
-            <span class="badge bg-secondary rounded-pill">v{{ version }}</span>
-          </p>
-          <p class="mb-0 small">
-            Developed by 凤凰山@2019 ·
-            <a href="https://github.com/aiastia-dockerhub/bustag" target="_blank">GitHub</a>
-            · 2026 Nuxt Edition
-          </p>
-        </div>
-      </div>
-    </footer>
   </div>
 </template>
-
 <script setup>
-const globalMsg = ref('')
-const config = useRuntimeConfig()
-const version = config.public.appVersion || 'dev'
-const { modalUrl, hideImage } = useImageModal()
-const { openSettings } = useAria2Settings()
-const { openSettings: open115Settings } = use115Settings()
-
-// 登录态（BUSTAG_PASSWORD 启用时显示登出入口）
-const auth = useAuthState()
-onMounted(() => { fetchAuthStatus() })
-
-const onLogout = async () => {
-  await logout()
-}
+const navigation = [
+  {
+    path: "/",
+    label: "为你推荐",
+    title: "为你推荐",
+    eyebrow: "DISCOVER",
+    icon: "discover",
+    description: "从你的偏好出发，发现下一部值得收藏的影片。",
+  },
+  {
+    path: "/tagit",
+    label: "偏好打标",
+    title: "记录你的偏好",
+    eyebrow: "YOUR TASTE",
+    icon: "tag",
+    description: "喜欢，或略过。用每一次选择，慢慢完善你的推荐。",
+  },
+  {
+    path: "/search",
+    label: "搜索发现",
+    title: "搜索资料库",
+    eyebrow: "EXPLORE",
+    icon: "search",
+    description: "通过番号、类型或演员，找到你想看的内容。",
+  },
+  {
+    path: "/local",
+    label: "本地收藏",
+    title: "本地收藏",
+    eyebrow: "COLLECTION",
+    icon: "folder",
+    description: "整理已经收藏的影片，让每一部都有迹可循。",
+  },
+  {
+    path: "/model",
+    label: "推荐模型",
+    title: "推荐模型",
+    eyebrow: "PERSONALIZATION",
+    icon: "model",
+    description: "让你的选择变成更准确的推荐，查看和管理模型表现。",
+  },
+  {
+    path: "/load_db",
+    label: "数据管理",
+    title: "数据管理",
+    eyebrow: "YOUR DATA",
+    icon: "database",
+    description: "导入已有打标记录，延续你积累的观影偏好。",
+  },
+];
+const route = useRoute();
+const isActive = (path) =>
+  path === "/"
+    ? route.path === "/"
+    : path === "/local"
+      ? ["/local", "/local_fanhao"].includes(route.path)
+      : route.path === path;
+const current = computed(
+  () => navigation.find((entry) => isActive(entry.path)) || navigation[0],
+);
+const version = useRuntimeConfig().public.appVersion || "dev";
+const { openSettings } = useAria2Settings();
+const { openSettings: open115Settings } = use115Settings();
+const auth = useAuthState();
+onMounted(() => fetchAuthStatus());
 </script>

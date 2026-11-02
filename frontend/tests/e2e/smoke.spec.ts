@@ -24,15 +24,15 @@ test('SSR authentication, hydration, thumbnails, model tasks and mobile layout',
  await expect(page.locator('.img-modal-overlay')).toBeVisible();
  await page.locator('.img-modal-overlay').click({position:{x:5,y:5}});
  await page.goto('http://127.0.0.1:3900/tagit');
- await page.getByRole('link',{name:'👍 喜欢',exact:true}).click();
+ await page.getByRole('button',{name:'喜欢',exact:true}).click();
  await expect(page.locator('.card-item')).toHaveCount(10);
  await page.goto('http://127.0.0.1:3900/search');
  await expect(page.locator('select').first().locator('option')).toHaveCount(2);
  await page.goto('http://127.0.0.1:3900/model');
  const submitted=page.waitForResponse(res=>res.url().endsWith('/api/do-training')&&res.status()===202);
- await page.getByRole('button',{name:'🚀 开始训练'}).click();
+ await page.getByRole('button',{name:'开始训练'}).click();
  const job=(await (await submitted).json()).job;
- await expect(page.getByRole('button',{name:'🚀 开始训练'})).toBeEnabled({timeout:20000});
+ await expect(page.getByRole('button',{name:'开始训练'})).toBeEnabled({timeout:20000});
  const state=await (await context.request.get('http://127.0.0.1:3900/api/jobs/'+job.id)).json();
  if(state.job.state!=='succeeded') throw new Error(JSON.stringify(state));
  await page.screenshot({path:testInfo.outputPath('model.png'),fullPage:true});

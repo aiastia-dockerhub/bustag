@@ -18,7 +18,7 @@ test('download actions show success and failure notices inside the page', async 
   page.on('dialog', () => { throw new Error('Download feedback must stay inside the page') })
   await page.goto('/')
   const actions = page.locator('.action-buttons').first()
-  const cloud = actions.getByRole('button', { name: '☁️ 115', exact: true })
+  const cloud = actions.getByRole('button', { name: '115', exact: true })
   await cloud.click()
   await expect(page.getByText(/已提交到 115 云下载/)).toBeVisible()
   await page.getByRole('button', { name: '关闭提醒' }).click()
@@ -30,7 +30,7 @@ test('download actions show success and failure notices inside the page', async 
   await expect(page.getByText(/115 提交失败：云下载配额已用完/)).toBeVisible()
   await page.getByRole('button', { name: '关闭提醒' }).click()
 
-  const aria = actions.getByRole('button', { name: '⬇️ Aria2', exact: true })
+  const aria = actions.getByRole('button', { name: 'Aria2', exact: true })
   await aria.click()
   await expect(page.getByText(/已提交到 Aria2/)).toBeVisible()
   await page.getByRole('button', { name: '关闭提醒' }).click()

@@ -1,361 +1,314 @@
 <template>
-  <div class="container">
-    <!-- 搜索区域 -->
-    <div class="card-item mt-3">
-      <div class="row g-3 align-items-end">
-        <div class="col-12 col-md-5">
-          <label class="form-label small fw-bold">🔍 番号搜索</label>
-          <form @submit.prevent="doSearch" class="input-group">
-            <input class="form-control search-input" v-model="query" placeholder="输入番号，如 SSIS-001" />
-            <button class="btn btn-primary" type="submit">搜索</button>
-          </form>
+  <div class="library-page">
+    <section class="search-panel surface" aria-label="搜索条件">
+      <form @submit.prevent="doSearch" class="number-search">
+        <label for="movie-query">番号搜索</label>
+        <div class="search-input-wrap">
+          <AppIcon name="search" /><input
+            id="movie-query"
+            class="form-control"
+            v-model="query"
+            placeholder="输入番号，如 SSIS-001"
+          /><button class="btn btn-primary" type="submit" :disabled="loading">
+            搜索
+          </button>
         </div>
-        <div class="col-12 col-md-5">
-          <label class="form-label small fw-bold">🏷️ 标签搜索</label>
-          <form @submit.prevent="doTagSearch" class="input-group">
-            <select class="form-select" v-model="currentTagId">
-              <option value="">-- 选择标签类型 --</option>
-              <option v-for="tag in genreTags" :key="tag.id" :value="tag.id">{{ tag.value }}</option>
-            </select>
-            <button class="btn btn-outline-secondary" type="submit">搜索</button>
-          </form>
-        </div>
-        <div class="col-12 col-md-5">
-          <label class="form-label small fw-bold">👩 女优搜索</label>
-          <form @submit.prevent="doStarSearch" class="input-group">
-            <select class="form-select" v-model="currentStarId">
-              <option value="">-- 选择女优 --</option>
-              <option v-for="star in starTags" :key="star.id" :value="star.id">{{ star.value }}</option>
-            </select>
-            <button class="btn btn-outline-secondary" type="submit">搜索</button>
-          </form>
-        </div>
-        <div class="col-12 col-md-2">
-          <label class="form-label small fw-bold">📊 评分筛选</label>
-          <select class="form-select" v-model="rateFilter" @change="applyRateFilter">
-            <option value="">全部</option>
-            <option value="liked">🟢 喜欢</option>
-            <option value="disliked">🔴 不喜欢</option>
-            <option value="recommended">🤖 系统推荐</option>
-            <option value="unrated">⚪ 未打标</option>
+      </form>
+      <div class="search-divider"><span>或按资料筛选</span></div>
+      <div class="search-filters">
+        <form @submit.prevent="doTagSearch">
+          <label for="genre-filter">类型标签</label>
+          <div class="input-group">
+            <select
+              id="genre-filter"
+              class="form-select"
+              v-model="currentTagId"
+            >
+              <option value="">选择类型标签</option>
+              <option v-for="tag in genreTags" :key="tag.id" :value="tag.id">
+                {{ tag.value }}
+              </option></select
+            ><button
+              class="btn btn-quiet"
+              type="submit"
+              :disabled="!currentTagId || loading"
+            >
+              搜索
+            </button>
+          </div>
+        </form>
+        <form @submit.prevent="doStarSearch">
+          <label for="star-filter">演员</label>
+          <div class="input-group">
+            <select
+              id="star-filter"
+              class="form-select"
+              v-model="currentStarId"
+            >
+              <option value="">选择演员</option>
+              <option v-for="star in starTags" :key="star.id" :value="star.id">
+                {{ star.value }}
+              </option></select
+            ><button
+              class="btn btn-quiet"
+              type="submit"
+              :disabled="!currentStarId || loading"
+            >
+              搜索
+            </button>
+          </div>
+        </form>
+        <div>
+          <label for="rate-filter">评分状态</label
+          ><select
+            id="rate-filter"
+            class="form-select"
+            v-model="rateFilter"
+            @change="applyRateFilter"
+          >
+            <option value="">全部状态</option>
+            <option value="liked">喜欢</option>
+            <option value="disliked">不喜欢</option>
+            <option value="recommended">系统推荐</option>
+            <option value="unrated">未打标</option>
           </select>
         </div>
       </div>
+    </section>
+    <div v-if="item || tagItems.length" class="list-caption">
+      <span
+        >{{ currentTag ? `“${currentTag}”` : "搜索结果" }} ·
+        {{
+          item ? 1 : tagPageInfo?.total_items || tagItems.length
+        }}
+        部影片</span
+      ><span v-if="loading" role="status">正在搜索…</span>
     </div>
-
-    <!-- 番号搜索结果 -->
-    <div v-if="item" class="card-item">
-      <div class="row g-3">
-        <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <CoverImage :src="item.cover_img_url" :referer="item.url" :priority="true" @click="showImg(item.cover_img_url, item.url)" />
-        </div>
-        <div class="col-12 col-sm-6 col-md-7 col-lg-8 col-xl-5 d-flex flex-column">
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <h5 class="mb-0 fw-bold">{{ item.fanhao }}</h5>
-            <span v-if="item.rate_type === 1 && item.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
-            <span v-else-if="item.rate_type === 1 && item.rate_value === 0" class="badge bg-danger">🔴 不喜欢</span>
-            <span v-else-if="item.rate_type === 2" class="badge bg-info">🤖 推荐</span>
-            <span v-else class="badge bg-secondary">⚪ 未打标</span>
-          </div>
-          <a :href="item.url" target="_blank" class="text-decoration-none small mb-2">{{ item.title || '' }}</a>
-          <div class="small text-muted mb-1">
-            <span class="me-3">📅 发行: {{ item.release_date || '-' }}</span>
-            <span>📥 添加: {{ item.add_date || '-' }}</span>
-          </div>
-          <div class="mt-1" v-if="item.tags_dict?.genre?.length">
-            <span v-for="t in item.tags_dict.genre" :key="t" class="badge bg-primary bg-opacity-75 badge-tag me-1 mb-1">{{ t }}</span>
-          </div>
-          <div class="mt-1" v-if="item.tags_dict?.star?.length">
-            <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
-          </div>
-        </div>
-        <div class="col-12 col-xl-3 d-flex align-items-center">
-          <div class="action-buttons" role="group" aria-label="影片操作">
-            <button class="btn btn-outline-info btn-sm" @click="copyMagnet(item.fanhao)"
-                    :disabled="!!magnetLoading[item.fanhao]">
-              <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
-              <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
-              <template v-else>🧲 磁力</template>
-            </button>
-            <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(item.fanhao)"
-                    :disabled="!!aria2Loading[item.fanhao]">
-              <template v-if="aria2Loading[item.fanhao] === 'done'">✅ 已发送</template>
-              <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
-              <template v-else>⬇️ Aria2</template>
-            </button>
-            <button class="btn btn-outline-warning btn-sm" @click="sendTo115(item.fanhao)"
-                    :disabled="!!push115Loading[item.fanhao]">
-              <template v-if="push115Loading[item.fanhao] === 'done'">✅ 已推送</template>
-              <template v-else-if="push115Loading[item.fanhao]">⏳</template>
-              <template v-else>☁️ 115</template>
-            </button>
-            <button class="btn btn-outline-success btn-sm" @click="tagItem(item.fanhao, 1, $event)">👍 喜欢</button>
-            <button class="btn btn-outline-danger btn-sm" @click="tagItem(item.fanhao, 0, $event)">👎 不喜欢</button>
-          </div>
-        </div>
-      </div>
+    <div class="movie-list" :aria-busy="loading">
+      <MovieCard
+        v-if="item"
+        :item="item"
+        priority
+        mode="tag"
+        :busy="!!ratingBusy[item.fanhao]"
+        @rate="tagItem"
+      />
+      <MovieCard
+        v-for="(tItem, index) in tagItems"
+        :key="tItem.fanhao"
+        :item="tItem"
+        :priority="index === 0"
+        mode="tag"
+        :busy="!!ratingBusy[tItem.fanhao]"
+        @rate="tagItem"
+      />
     </div>
-
-    <!-- 番号搜索无结果 -->
-    <div v-if="searched && !item && query && !currentTag" class="text-center py-4">
-      <div class="alert alert-warning d-inline-block">未找到番号「{{ query }}」的相关信息</div>
-    </div>
-
-    <!-- 标签/女优搜索结果 -->
-    <template v-if="tagItems.length > 0">
-      <div class="py-2">
-        <h6 class="fw-bold">
-          {{ searchType === 'star' ? '👩 女优' : searchType === 'fanhao' ? '🔍 番号' : '🏷️ 标签' }}「{{ currentTag }}」共 {{ tagPageInfo?.total_items || tagItems.length || 0 }} 条
-        </h6>
-      </div>
-      <div v-for="(tItem, index) in tagItems" :key="tItem.fanhao" class="card-item">
-        <div class="row g-3">
-          <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-            <CoverImage :src="tItem.cover_img_url" :referer="tItem.url" :priority="index === 0" @click="showImg(tItem.cover_img_url, tItem.url)" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-7 col-lg-8 col-xl-5 d-flex flex-column">
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <h6 class="mb-0 fw-bold">{{ tItem.fanhao }}</h6>
-              <span v-if="tItem.rate_type === 1 && tItem.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
-              <span v-else-if="tItem.rate_type === 1 && tItem.rate_value === 0" class="badge bg-danger">🔴 不喜欢</span>
-              <span v-else-if="tItem.rate_type === 2" class="badge bg-info">🤖 推荐</span>
-              <span v-else class="badge bg-secondary">⚪ 未打标</span>
-            </div>
-            <a :href="tItem.url" target="_blank" class="text-decoration-none small mb-2 text-truncate d-inline-block" style="max-width: 100%;">
-              {{ tItem.title || '' }}
-            </a>
-            <div class="small text-muted mb-1">
-              <span class="me-3">📅 发行: {{ tItem.release_date || '-' }}</span>
-              <span>📥 添加: {{ tItem.add_date || '-' }}</span>
-            </div>
-            <div class="mt-1" v-if="tItem.tags_dict?.genre?.length">
-              <span v-for="t in tItem.tags_dict.genre" :key="t" class="badge bg-primary bg-opacity-75 badge-tag me-1 mb-1">{{ t }}</span>
-            </div>
-            <div class="mt-1" v-if="tItem.tags_dict?.star?.length">
-              <span v-for="t in tItem.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
-            </div>
-          </div>
-          <div class="col-12 col-xl-3 d-flex align-items-center">
-            <div class="action-buttons" role="group" aria-label="影片操作">
-              <button class="btn btn-outline-info btn-sm" @click="copyMagnet(tItem.fanhao)"
-                      :disabled="!!magnetLoading[tItem.fanhao]">
-                <template v-if="magnetLoading[tItem.fanhao] === 'done'">✅ 已复制</template>
-                <template v-else-if="magnetLoading[tItem.fanhao]">⏳</template>
-                <template v-else>🧲 磁力</template>
-              </button>
-              <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(tItem.fanhao)"
-                      :disabled="!!aria2Loading[tItem.fanhao]">
-                <template v-if="aria2Loading[tItem.fanhao] === 'done'">✅ 已发送</template>
-                <template v-else-if="aria2Loading[tItem.fanhao]">⏳</template>
-                <template v-else>⬇️ Aria2</template>
-              </button>
-              <button class="btn btn-outline-warning btn-sm" @click="sendTo115(tItem.fanhao)"
-                      :disabled="!!push115Loading[tItem.fanhao]">
-                <template v-if="push115Loading[tItem.fanhao] === 'done'">✅ 已推送</template>
-                <template v-else-if="push115Loading[tItem.fanhao]">⏳</template>
-                <template v-else>☁️ 115</template>
-              </button>
-              <button class="btn btn-outline-success btn-sm" @click="tagItem(tItem.fanhao, 1, $event)">👍 喜欢</button>
-              <button class="btn btn-outline-danger btn-sm" @click="tagItem(tItem.fanhao, 0, $event)">👎 不喜欢</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <Pagination v-if="tagPageInfo" :pageInfo="tagPageInfo" @go-page="goTagPage" />
-    </template>
-
-    <!-- 标签搜索无结果 -->
-    <div v-if="currentTag && tagItems.length === 0 && !loading" class="text-center py-4">
-      <div class="alert alert-warning d-inline-block">未找到标签「{{ currentTag }}」的相关信息</div>
-    </div>
+    <Pagination
+      v-if="tagPageInfo"
+      :pageInfo="tagPageInfo"
+      @go-page="goTagPage"
+    />
+    <EmptyState
+      v-if="!loading && !item && !tagItems.length"
+      :title="searched || currentTag ? '没有找到匹配的影片' : '从一次搜索开始'"
+      :description="
+        searched || currentTag
+          ? '试试其他番号、类型或演员，或者调整评分筛选。'
+          : '输入番号直接查找，也可以通过类型和演员探索你的资料库。'
+      "
+      icon="search"
+    />
   </div>
 </template>
 
 <script setup>
-const { showImage } = useImageModal()
-const { magnetLoading, copyMagnet } = useMagnet()
-const { aria2Loading, sendToAria2 } = useAria2()
-const { pushLoading: push115Loading, sendTo115 } = use115Push()
+const ratingBusy = ref({});
+const { notify } = useNotifications();
 
-const query = ref('')
-const item = ref(null)
-const tagItems = ref([])
-const tagPageInfo = ref(null)
-const genreTags = ref([])
-const starTags = ref([])
-const currentTagId = ref('')
-const currentStarId = ref('')
-const currentTag = ref('')
-const loading = ref(false)
-const searched = ref(false)
-const rateFilter = ref('')
-
-const showImg = (url, referer) => showImage(imgProxyUrl(url, 0, referer))
+const query = ref("");
+const item = ref(null);
+const tagItems = ref([]);
+const tagPageInfo = ref(null);
+const genreTags = ref([]);
+const starTags = ref([]);
+const currentTagId = ref("");
+const currentStarId = ref("");
+const currentTag = ref("");
+const loading = ref(false);
+const searched = ref(false);
+const rateFilter = ref("");
 
 // 构建带评分筛选的搜索参数
 const _buildParams = (base = {}) => {
   if (rateFilter.value) {
-    base.rate_filter = rateFilter.value
+    base.rate_filter = rateFilter.value;
   }
-  return base
-}
+  return base;
+};
 
 // 评分筛选变更时，重新执行当前搜索
 const applyRateFilter = async () => {
-  if (searchType.value === 'tag' && currentTagId.value) {
-    await doTagSearch()
-  } else if (searchType.value === 'star' && currentStarId.value) {
-    await doStarSearch()
+  if (searchType.value === "tag" && currentTagId.value) {
+    await doTagSearch();
+  } else if (searchType.value === "star" && currentStarId.value) {
+    await doStarSearch();
   }
-}
+};
 
 // 当前列表搜索类型: '' = 无, 'tag' = 标签, 'star' = 女优
-const searchType = ref('')
+const searchType = ref("");
 
 const doSearch = async () => {
-  if (!query.value.trim()) return
-  currentTagId.value = ''
-  currentStarId.value = ''
-  currentTag.value = ''
-  searchType.value = ''
-  tagItems.value = []
-  tagPageInfo.value = null
-  searched.value = true
-  loading.value = true
+  if (!query.value.trim()) return;
+  currentTagId.value = "";
+  currentStarId.value = "";
+  currentTag.value = "";
+  searchType.value = "";
+  tagItems.value = [];
+  tagPageInfo.value = null;
+  searched.value = true;
+  loading.value = true;
   try {
-    const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
-    item.value = res.item
+    const res = await $fetch("/api/search", {
+      params: _buildParams({ q: query.value, page: 1 }),
+    });
+    item.value = res.item;
     // 精确未命中时，展示后端模糊匹配到的多条结果
     if (!res.item && res.tag_items && res.tag_items.length > 0) {
-      tagItems.value = res.tag_items
-      tagPageInfo.value = res.page_info || null
-      currentTag.value = query.value
-      searchType.value = 'fanhao'
-      searched.value = false
+      tagItems.value = res.tag_items;
+      tagPageInfo.value = res.page_info || null;
+      currentTag.value = query.value;
+      searchType.value = "fanhao";
+      searched.value = false;
     }
-    genreTags.value = res.genre_tags || genreTags.value
-    starTags.value = res.star_tags || starTags.value
+    genreTags.value = res.genre_tags || genreTags.value;
+    starTags.value = res.star_tags || starTags.value;
   } catch (e) {
-    console.error('搜索失败:', e)
+    console.error("搜索失败:", e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const doTagSearch = async () => {
-  if (!currentTagId.value) return
-  query.value = ''
-  currentStarId.value = ''
-  item.value = null
-  searched.value = false
-  searchType.value = 'tag'
-  loading.value = true
+  if (!currentTagId.value) return;
+  query.value = "";
+  currentStarId.value = "";
+  item.value = null;
+  searched.value = false;
+  searchType.value = "tag";
+  loading.value = true;
   try {
-    const res = await $fetch('/api/search', { params: _buildParams({ tag_id: currentTagId.value, page: 1 }) })
-    tagItems.value = res.tag_items || []
-    tagPageInfo.value = res.page_info
-    currentTag.value = res.tag_value || ''
-    genreTags.value = res.genre_tags || genreTags.value
-    starTags.value = res.star_tags || starTags.value
+    const res = await $fetch("/api/search", {
+      params: _buildParams({ tag_id: currentTagId.value, page: 1 }),
+    });
+    tagItems.value = res.tag_items || [];
+    tagPageInfo.value = res.page_info;
+    currentTag.value = res.tag_value || "";
+    genreTags.value = res.genre_tags || genreTags.value;
+    starTags.value = res.star_tags || starTags.value;
   } catch (e) {
-    console.error('搜索失败:', e)
+    console.error("搜索失败:", e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const doStarSearch = async () => {
-  if (!currentStarId.value) return
-  query.value = ''
-  currentTagId.value = ''
-  item.value = null
-  searched.value = false
-  searchType.value = 'star'
-  loading.value = true
+  if (!currentStarId.value) return;
+  query.value = "";
+  currentTagId.value = "";
+  item.value = null;
+  searched.value = false;
+  searchType.value = "star";
+  loading.value = true;
   try {
-    const res = await $fetch('/api/search', { params: _buildParams({ star_id: currentStarId.value, page: 1 }) })
-    tagItems.value = res.tag_items || []
-    tagPageInfo.value = res.page_info
-    currentTag.value = res.tag_value || ''
-    genreTags.value = res.genre_tags || genreTags.value
-    starTags.value = res.star_tags || starTags.value
+    const res = await $fetch("/api/search", {
+      params: _buildParams({ star_id: currentStarId.value, page: 1 }),
+    });
+    tagItems.value = res.tag_items || [];
+    tagPageInfo.value = res.page_info;
+    currentTag.value = res.tag_value || "";
+    genreTags.value = res.genre_tags || genreTags.value;
+    starTags.value = res.star_tags || starTags.value;
   } catch (e) {
-    console.error('搜索失败:', e)
+    console.error("搜索失败:", e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const goTagPage = async (page) => {
-  loading.value = true
+  loading.value = true;
   try {
-    const params = _buildParams({ page })
-    if (searchType.value === 'star') {
-      params.star_id = currentStarId.value
+    const params = _buildParams({ page });
+    if (searchType.value === "star") {
+      params.star_id = currentStarId.value;
     } else {
-      params.tag_id = currentTagId.value
+      params.tag_id = currentTagId.value;
     }
-    const res = await $fetch('/api/search', { params })
-    tagItems.value = res.tag_items || []
-    tagPageInfo.value = res.page_info
+    const res = await $fetch("/api/search", { params });
+    tagItems.value = res.tag_items || [];
+    tagPageInfo.value = res.page_info;
   } catch (e) {
-    console.error('搜索失败:', e)
+    console.error("搜索失败:", e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const refreshTagResults = async () => {
-  const page = tagPageInfo.value?.current_page || 1
-  const params = _buildParams({ page })
-  if (searchType.value === 'star') {
-    params.star_id = currentStarId.value
+  const page = tagPageInfo.value?.current_page || 1;
+  const params = _buildParams({ page });
+  if (searchType.value === "star") {
+    params.star_id = currentStarId.value;
   } else {
-    params.tag_id = currentTagId.value
+    params.tag_id = currentTagId.value;
   }
-  const res = await $fetch('/api/search', { params })
-  tagItems.value = res.tag_items || []
-  tagPageInfo.value = res.page_info
-}
+  const res = await $fetch("/api/search", { params });
+  tagItems.value = res.tag_items || [];
+  tagPageInfo.value = res.page_info;
+};
 
-const tagItem = async (fanhao, rateValue, event) => {
-  const btn = event?.target
-  if (btn) {
-    btn.disabled = true
-    btn.innerHTML = '⏳'
-  }
+const tagItem = async (fanhao, rateValue) => {
+  if (ratingBusy.value[fanhao]) return;
+  ratingBusy.value[fanhao] = true;
   try {
     await $fetch(`/api/tag/${fanhao}`, {
-      method: 'POST',
+      method: "POST",
       body: { rate_value: rateValue },
-    })
+    });
     // 刷新当前搜索结果以更新打标状态
     if (item.value && item.value.fanhao === fanhao && query.value) {
       // 番号精确搜索结果：重新搜索
-      const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
-      item.value = res.item
-    } else if (searchType.value === 'fanhao' && query.value) {
+      const res = await $fetch("/api/search", {
+        params: _buildParams({ q: query.value, page: 1 }),
+      });
+      item.value = res.item;
+    } else if (searchType.value === "fanhao" && query.value) {
       // 番号模糊搜索结果：重新模糊搜索刷新列表
-      const res = await $fetch('/api/search', { params: _buildParams({ q: query.value, page: 1 }) })
-      tagItems.value = res.tag_items || []
-      tagPageInfo.value = res.page_info || null
+      const res = await $fetch("/api/search", {
+        params: _buildParams({ q: query.value, page: 1 }),
+      });
+      tagItems.value = res.tag_items || [];
+      tagPageInfo.value = res.page_info || null;
     } else if (searchType.value) {
       // 标签/女优搜索结果：刷新当前页
-      await refreshTagResults()
+      await refreshTagResults();
     }
   } catch (e) {
-    console.error('打标失败:', e)
-    if (btn) {
-      btn.disabled = false
-      btn.textContent = rateValue === 1 ? '👍 喜欢' : '👎 不喜欢'
-    }
-    alert('打标失败: ' + (e.data?.status || e.message))
+    if (!handle401(e))
+      notify("error", `${fanhao} · 操作失败：${e.data?.error || e.message}`);
+  } finally {
+    ratingBusy.value[fanhao] = false;
   }
-}
+};
 
-const { data: dictionary } = await useFetch('/api/tags', { key: 'search-tags' })
+const { data: dictionary } = await useFetch("/api/tags", {
+  key: "search-tags",
+});
 if (dictionary.value) {
-  genreTags.value = dictionary.value.genre_tags
-  starTags.value = dictionary.value.star_tags
+  genreTags.value = dictionary.value.genre_tags;
+  starTags.value = dictionary.value.star_tags;
 }
 </script>
