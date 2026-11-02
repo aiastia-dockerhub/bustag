@@ -3,9 +3,11 @@ persist data to db
 支持 SQLite（默认）和 MySQL（通过配置切换）
 '''
 from datetime import date
+import fcntl
+import os
 import datetime
 import operator
-from functools import reduce
+from functools import reduce, lru_cache
 import json
 from peewee import *
 from enum import IntEnum
@@ -45,7 +47,7 @@ def _create_db():
 
     # 默认使用 SQLite
     sqlite_db = SqliteDatabase(get_data_path(DB_FILE), pragmas={
-        'journal_mode': 'wal'})
+        'journal_mode': 'wal', 'busy_timeout': 10000, 'cache_size': -16384})
     logger.info('Using SQLite')
     return sqlite_db
 
@@ -77,12 +79,20 @@ class Item(BaseModel):
     url = CharField(unique=True)
     release_date = DateField()
     add_date = DateTimeField(default=datetime.datetime.now)
+    add_day = DateField(null=True)
     meta_info = TextField()
     # 影片类型：normal=有码, uncensored=无码
     movie_type = CharField(default='normal')
 
     def __repr__(self):
         return f'<Item:{self.fanhao} {self.title}>'
+
+    def save(self, *args, **kwargs):
+        # Keep the indexed day aligned with the original timestamp, including imports.
+        if self.add_day is None or Item.add_date in self.dirty_fields:
+            value = self.add_date
+            self.add_day = value.date() if isinstance(value, datetime.datetime) else str(value)[:10]
+        return super().save(*args, **kwargs)
 
     @staticmethod
     def saveit(meta_info, movie_type='normal'):
@@ -220,6 +230,20 @@ class ItemRate(BaseModel):
             return item_rate
 
     @staticmethod
+    def set_user_rating(fanhao, value):
+        timestamp = get_now_time()
+        query = ItemRate.insert(item=fanhao, rate_type=RATE_TYPE.USER_RATE,
+                                rate_value=value, rete_time=timestamp)
+        updates = {ItemRate.rate_type: RATE_TYPE.USER_RATE,
+                   ItemRate.rate_value: value, ItemRate.rete_time: timestamp}
+        options = {'update': updates}
+        if not isinstance(db, MySQLDatabase):
+            options['conflict_target'] = [ItemRate.item]
+        with db.atomic():
+            query.on_conflict(**options).execute()
+            touch_data()
+
+    @staticmethod
     def getit(id):
         item_rate = ItemRate.get_or_none(ItemRate.id == id)
         return item_rate
@@ -298,21 +322,17 @@ class LocalItem(BaseModel):
 
 
 def save(meta_info, tags, movie_type='normal'):
-    item_title = meta_info['title']
-    tag_objs = []
-    try:
-        item = Item.saveit(meta_info, movie_type=movie_type)
-    except ExistError:
-        logger.debug(f'item exists: {item_title}')
-    else:
-        with db.atomic():
-            for tag_info in tags:
-                tag = Tag.saveit(tag_info)
-                if tag:
-                    tag_objs.append(tag)
-        with db.atomic():
-            for tag_obj in tag_objs:
-                ItemTag.saveit(item, tag_obj)
+    with db.atomic():
+        try:
+            item = Item.saveit(dict(meta_info), movie_type=movie_type)
+        except ExistError:
+            return False
+        tag_ids = [Tag.saveit(info).id for info in tags]
+        if tag_ids:
+            rows = [{'item': item.fanhao, 'tag': tag_id} for tag_id in set(tag_ids)]
+            ItemTag.insert_many(rows).execute()
+        touch_data()
+    return True
 
 
 def test_save():
@@ -338,41 +358,52 @@ def test_save():
     LocalItem.saveit('MADM-116', '/Download/MADM-116.avi')
 
 
-def get_items(rate_type=None, rate_value=None, page=1, page_size=10, movie_type=None):
-    '''
-    get required items based on some conditions
-    movie_type: None=全部, 'normal'=有码, 'uncensored'=无码
-    '''
-    items_list = []
-    clauses = []
-    if rate_type is not None:
-        clauses.append(ItemRate.rate_type == rate_type)
+def _list_filter(rate_type, rate_value, movie_type):
+    rate = ItemRate.select(ItemRate.id).where(ItemRate.item == Item.fanhao)
+    if rate_type is None:
+        condition = ~fn.EXISTS(rate)
+        if rate_value is not None:
+            condition &= SQL('0 = 1')
     else:
-        clauses.append(ItemRate.rate_type.is_null())
-    if rate_value is not None:
-        clauses.append(ItemRate.rate_value == rate_value)
+        rate = rate.where(ItemRate.rate_type == rate_type)
+        if rate_value is not None:
+            rate = rate.where(ItemRate.rate_value == rate_value)
+        condition = fn.EXISTS(rate)
     if movie_type is not None:
-        clauses.append(Item.movie_type == movie_type)
-    # 排序：添加日期(只取日期部分)降序 → 发行日期降序 → ID升序
-    q = (Item.select(Item, ItemRate)
-         .join(ItemRate, JOIN.LEFT_OUTER, attr='item_rate')
-         .where(reduce(operator.and_, clauses))
-         .order_by(fn.date(Item.add_date).desc(), Item.release_date.desc(), Item.id.asc())
-         )
-    total_items = q.count()
-    if not page is None:
-        q = q.paginate(page, page_size)
-    items = get_tags_for_items(q)
+        condition &= Item.movie_type == movie_type
+    return condition
+
+
+@lru_cache(maxsize=128)
+def _item_count(database, revision, rate_type, rate_value, movie_type):
+    # Count without page sorting or selected metadata, shared by pages of the same filter.
+    if rate_type is not None:
+        query = ItemRate.select().join(Item).where(ItemRate.rate_type == rate_type)
+        if rate_value is not None:
+            query = query.where(ItemRate.rate_value == rate_value)
+        if movie_type is not None:
+            query = query.where(Item.movie_type == movie_type)
+    else:
+        query = Item.select(Item.id).where(_list_filter(rate_type, rate_value, movie_type))
+    return query.count()
+
+
+def get_items(rate_type=None, rate_value=None, page=1, page_size=10, movie_type=None):
+    page_size = max(1, min(int(page_size), 5000))
+    if page is not None:
+        page = max(1, int(page))
+    total = _item_count(str(db.database), data_revision(), rate_type, rate_value, movie_type)
+    rating = ItemRate.select(ItemRate.rate_value).where(ItemRate.item == Item.fanhao).limit(1)
+    # EXISTS keeps Item as the outer scan, so the day index can satisfy ORDER BY / LIMIT.
+    query = (Item.select(Item, rating.alias('rate_value'))
+             .where(_list_filter(rate_type, rate_value, movie_type))
+             .order_by(Item.add_day.desc(), Item.release_date.desc(), Item.id.asc()))
+    if page is not None:
+        query = query.paginate(page, page_size)
+    items = get_tags_for_items(query)
     for item in items:
         Item.loadit(item)
-        # LEFT JOIN 无匹配时 item_rate 为 None（hasattr 仍返回 True，不能直接用 hasattr 判断）
-        item_rate = getattr(item, 'item_rate', None)
-        item.rate_value = item_rate.rate_value if item_rate else None
-        items_list.append(item)
-
-    total_pages = (total_items + page_size - 1) // page_size
-    page_info = (total_items, total_pages, page, page_size)
-    return items_list, page_info
+    return items, (total, (total + page_size - 1) // page_size, page, page_size)
 
 
 def get_local_items(page=1, page_size=10):
@@ -406,26 +437,22 @@ def get_local_items(page=1, page_size=10):
     return items, page_info
 
 
+def _today_bounds():
+    start = get_now_time().replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, start + datetime.timedelta(days=1)
+
+
 def get_today_update_count():
-    now = get_now_time()
-    year, month, day = now.year, now.month, now.day
-    q = Item.select().where((Item.add_date.year == year)
-                            & (Item.add_date.month == month)
-                            & (Item.add_date.day == day)
-                            )
-    return q.count()
+    start, end = _today_bounds()
+    return Item.select().where(Item.add_date >= start, Item.add_date < end).count()
 
 
 def get_today_recommend_count():
-    now = get_now_time()
-    year, month, day = now.year, now.month, now.day
-    q = ItemRate.select().where((ItemRate.rete_time.year == year)
-                                & (ItemRate.rete_time.month == month)
-                                & (ItemRate.rete_time.day == day)
-                                & (ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE)
-                                & (ItemRate.rate_value == RATE_VALUE.LIKE)
-                                )
-    return q.count()
+    start, end = _today_bounds()
+    return ItemRate.select().where(
+        ItemRate.rete_time >= start, ItemRate.rete_time < end,
+        ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE,
+        ItemRate.rate_value == RATE_VALUE.LIKE).count()
 
 
 def get_genre_tags():
@@ -456,24 +483,16 @@ def get_items_by_tag_id(tag_id, page=1, page_size=10, rate_filter=None):
     rate_filter: None/'liked'/'disliked'/'recommended'/'unrated'
     '''
     items_list = []
-    tag = Tag.get_or_none(Tag.id == tag_id)
-    if not tag:
-        return items_list, (0, 0, 1, page_size)
-    return get_items_by_tag(tag.value, page=page, page_size=page_size,
-                            rate_filter=rate_filter)
+    return _get_items_by_tag_clause(Tag.id == tag_id, page, page_size, rate_filter)
 
 
 def get_items_by_tag(tag_value, page=1, page_size=10, rate_filter=None):
-    '''
-    按标签值搜索关联的 Item，支持分页和评分筛选
-    rate_filter: None/'liked'/'disliked'/'recommended'/'unrated'
-    '''
-    items_list = []
-    tag = Tag.get_or_none(Tag.value == tag_value)
-    if not tag:
-        return items_list, (0, 0, 1, page_size)
+    return _get_items_by_tag_clause(Tag.value == tag_value, page, page_size, rate_filter)
 
-    clauses = [(Tag.value == tag_value)]
+
+def _get_items_by_tag_clause(clause, page, page_size, rate_filter):
+    items_list = []
+    clauses = [clause]
 
     if rate_filter in ('liked', 'disliked', 'recommended'):
         # 需要 INNER JOIN ItemRate（只返回有对应打标记录的）
@@ -508,7 +527,7 @@ def get_items_by_tag(tag_value, page=1, page_size=10, rate_filter=None):
              )
 
     q = q.where(reduce(operator.and_, clauses)).order_by(
-        fn.date(Item.add_date).desc(), Item.release_date.desc(), Item.id.asc())
+        Item.add_day.desc(), Item.release_date.desc(), Item.id.asc())
 
     total_items = q.count()
     if page is not None:
@@ -535,9 +554,71 @@ def get_tags_for_items(items_query):
     return items
 
 
+def get_feature_items(after_id=0, max_id=None, page_size=1000, user_rated=False):
+    query = Item.select(Item.id, Item.fanhao)
+    if user_rated:
+        query = (Item.select(Item.id, Item.fanhao, ItemRate)
+                 .join(ItemRate, attr='item_rate').where(ItemRate.rate_type == RATE_TYPE.USER_RATE))
+    else:
+        query = query.where(~fn.EXISTS(ItemRate.select(ItemRate.id).where(
+            ItemRate.item == Item.fanhao)))
+    query = query.where(Item.id > after_id)
+    if max_id is not None:
+        query = query.where(Item.id <= max_id)
+    query = query.order_by(Item.id).limit(page_size)
+    items = get_tags_for_items(query)
+    if user_rated:
+        for item in items:
+            item.rate_value = item.item_rate.rate_value
+    return items
+
+
+class DataRevision(BaseModel):
+    name = CharField(primary_key=True)
+    version = BigIntegerField(default=0)
+
+
+def touch_data():
+    # A shared revision invalidates API caches across the web and worker processes.
+    DataRevision.update(version=DataRevision.version + 1).where(
+        DataRevision.name == 'data').execute()
+
+
+def data_revision():
+    return DataRevision.get_by_id('data').version
+
+
+def ensure_indexes():
+    definitions = {
+        'item': {
+            'item_day_sort': 'add_day DESC, release_date DESC, id ASC',
+            'item_type_day_sort': 'movie_type, add_day DESC, release_date DESC, id ASC',
+            'item_added': 'add_date',
+        },
+        'item_rate': {
+            'rate_filter_item': 'rate_type, rate_value, item_id',
+            'rate_today': 'rate_type, rate_value, rete_time',
+        },
+        'item_tag': {'tag_item_lookup': 'tag_id, item_id'},
+    }
+    for table, indexes in definitions.items():
+        existing = {index.name for index in db.get_indexes(table)}
+        for name, fields in indexes.items():
+            if name not in existing:
+                db.execute_sql(f'CREATE INDEX {name} ON {table} ({fields})')
+
+
 def init():
+    path = get_data_path('schema.lock')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'a') as guard:
+        fcntl.flock(guard, fcntl.LOCK_EX)
+        _init_schema()
+
+
+def _init_schema():
     db.connect(reuse_if_open=True)
-    db.create_tables([Item, Tag, ItemTag, ItemRate, SkipItem, LocalItem])
+    db.create_tables([Item, Tag, ItemTag, ItemRate, SkipItem, LocalItem, DataRevision])
     # 自动迁移：旧数据库没有 movie_type 字段时自动添加
     try:
         columns = [col.name for col in db.get_columns('item')]
@@ -546,6 +627,13 @@ def init():
             logger.info('Database migrated: added movie_type column to item table')
     except Exception as e:
         logger.warning(f'Database migration check: {e}')
+
+    columns = {col.name for col in db.get_columns('item')}
+    if 'add_day' not in columns:
+        db.execute_sql('ALTER TABLE item ADD COLUMN add_day DATE')
+    db.execute_sql('UPDATE item SET add_day = DATE(add_date) WHERE add_day IS NULL')
+    DataRevision.get_or_create(name='data')
+    ensure_indexes()
 
 
 init()

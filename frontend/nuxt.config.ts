@@ -8,7 +8,7 @@ try {
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
 
   app: {
     head: {
@@ -30,6 +30,7 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
+    apiBase: 'http://127.0.0.1:8000',
     public: {
       appVersion: version,
     },
@@ -41,8 +42,4 @@ export default defineNuxtConfig({
     preset: 'node-server',
   },
 
-  routeRules: {
-    '/api/**': { proxy: 'http://localhost:8000/api/**' },
-    '/img_proxy': { proxy: 'http://localhost:8000/img_proxy' },
-  },
 })

@@ -1,6 +1,11 @@
 <template>
   <div class="container py-3">
     <div class="model-page">
+      <div v-if="jobError" class="alert alert-warning">{{ jobError }}</div>
+      <div v-for="job in active" :key="job.id" class="alert alert-info" role="status">
+        {{ job.state === 'queued' ? '任务排队中' : (job.progress.stage || '后台处理中') }}
+        <span v-if="job.progress.processed"> · 已处理 {{ job.progress.processed }} 条</span>
+      </div>
 
       <!-- ========== 训练模型 ========== -->
       <section class="card-section mb-4">
@@ -15,11 +20,14 @@
         </div>
 
         <div class="section-body">
-          <button class="btn btn-primary px-4" @click="trainModel" :disabled="training">
+          <button class="btn btn-primary px-4" @click="trainModel" :disabled="busy">
             <span v-if="training" class="spinner-border spinner-border-sm me-1"></span>
             {{ training ? '训练中...' : '🚀 开始训练' }}
           </button>
 
+          <label class="ms-3 small text-muted">
+            <input type="checkbox" v-model="fullEvaluation" :disabled="busy" /> 完整评估（含 5 折交叉验证）
+          </label>
           <transition name="fade">
             <div v-if="error" class="alert alert-danger mt-3 mb-0 d-flex align-items-center">
               <span class="me-2">⚠️</span>
@@ -51,11 +59,11 @@
 
         <div class="section-body">
           <div class="btn-row">
-            <button class="btn btn-outline-warning px-4" @click="clearRecommend" :disabled="recommendBusy">
+            <button class="btn btn-outline-warning px-4" @click="clearRecommend" :disabled="busy">
               <span v-if="recommendBusy" class="spinner-border spinner-border-sm me-1"></span>
               🗑️ 清理旧推荐
             </button>
-            <button class="btn btn-success px-4" @click="reRecommend" :disabled="recommendBusy">
+            <button class="btn btn-success px-4" @click="reRecommend" :disabled="busy">
               <span v-if="recommendBusy" class="spinner-border spinner-border-sm me-1"></span>
               ✨ 重新推荐
             </button>
@@ -174,36 +182,46 @@
 <script setup>
 const scores = ref(null)
 const error = ref('')
-const training = ref(false)
+const { jobs, active, error: jobError, submit } = useJobs()
+const fullEvaluation = ref(false)
+const submitting = ref(false)
+const busy = computed(() => submitting.value || active.value.length > 0)
+const training = computed(() => active.value.some(job => job.kind === 'train'))
+const recommendBusy = computed(() => active.value.some(job => ['recommend', 'clear'].includes(job.kind)))
 
 const loadModel = async () => {
   try {
     const res = await $fetch('/api/model')
     scores.value = res.model_scores
   } catch (e) {
-    console.error('加载模型失败:', e)
+    handle401(e)
   }
 }
 
 const trainModel = async () => {
-  training.value = true
+  submitting.value = true
   error.value = ''
   try {
-    const res = await $fetch('/api/do-training', { timeout: 300000 })
-    if (res.error_msg) {
-      error.value = res.error_msg
-    } else {
-      scores.value = res.model_scores
-    }
+    await submit('/api/do-training', { full_evaluation: fullEvaluation.value })
   } catch (e) {
-    error.value = '训练失败: ' + e.message
+    error.value = e.data?.error || e.message
   } finally {
-    training.value = false
+    submitting.value = false
   }
 }
 
+// Refresh model metrics on completion, including jobs submitted on another device.
+const latest = computed(() => jobs.value.find(job => ['train', 'recommend', 'clear'].includes(job.kind)))
+watch(() => latest.value && `${latest.value.id}:${latest.value.state}`, async () => {
+  const job = latest.value
+  if (job?.state === 'failed') error.value = job.error
+  if (job?.state === 'succeeded') {
+    if (job.kind === 'train') await loadModel()
+    else recommendResult.value = job.result
+  }
+})
+
 // 推荐数据管理
-const recommendBusy = ref(false)
 const recommendResult = ref(null)
 
 const recommendResultMsg = computed(() => {
@@ -220,15 +238,14 @@ const recommendResultMsg = computed(() => {
 
 const callRecommendApi = async (url, confirmMsg) => {
   if (!confirm(confirmMsg)) return
-  recommendBusy.value = true
+  submitting.value = true
   recommendResult.value = null
   try {
-    const res = await $fetch(url, { method: 'POST', timeout: 300000 })
-    recommendResult.value = res
+    await submit(url)
   } catch (e) {
     recommendResult.value = { success: false, error: e.message }
   } finally {
-    recommendBusy.value = false
+    submitting.value = false
   }
 }
 
@@ -253,7 +270,8 @@ const maxImportance = computed(() => {
 })
 const featureWidth = (imp) => Math.max(5, (imp / maxImportance.value * 100)) + '%'
 
-onMounted(() => loadModel())
+const { data: initial } = await useFetch('/api/model')
+if (initial.value) scores.value = initial.value.model_scores
 </script>
 
 <style scoped>

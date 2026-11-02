@@ -26,11 +26,10 @@
     </div>
 
     <!-- 列表 -->
-    <div v-for="item in items" :key="item.fanhao" class="card-item">
+    <div v-for="(item, index) in items" :key="item.fanhao" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
-               @click="showImg(item.cover_img_url)" alt="cover" loading="lazy" />
+          <CoverImage :src="item.cover_img_url" :priority="index === 0" @click="showImg(item.cover_img_url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ item.fanhao }}</h6>
@@ -97,16 +96,27 @@ const movieType = ref('normal')
 
 const showImg = (url) => showImage(imgProxyUrl(url))
 
-const loadData = async (page = 1) => {
-  try {
-    const params = { page, type: movieType.value }
-    if (like.value !== null) params.like = like.value
-    const res = await $fetch('/api/tagit', { params })
+const applyResponse = (res) => {
     items.value = res.items
     pageInfo.value = res.page_info
     movieTypes.value = res.movie_types
     movieType.value = res.movie_type
+}
+
+let listController
+onBeforeUnmount(() => listController?.abort())
+
+const loadData = async (page = 1) => {
+  listController?.abort()
+  listController = new AbortController()
+  try {
+    const params = { page, type: movieType.value }
+    if (like.value !== null) params.like = like.value
+    const res = await $fetch('/api/tagit', { params, signal: listController.signal })
+    applyResponse(res)
   } catch (e) {
+    if (e.name === 'AbortError') return
+    handle401(e)
     console.error('加载打标数据失败:', e)
   }
 }
@@ -142,5 +152,6 @@ const tag = async (fanhao, rateValue, event) => {
   }
 }
 
-onMounted(() => loadData())
+const { data: initial } = await useFetch('/api/tagit', { params: { page: 1, type: movieType.value } })
+if (initial.value) applyResponse(initial.value)
 </script>

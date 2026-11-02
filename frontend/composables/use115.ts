@@ -9,9 +9,9 @@
  */
 
 /** 设置弹框显隐（全局状态，单实例，挂载在 layout 中） */
-const settings115Visible = ref(false)
 
 export function use115Settings() {
+  const settings115Visible = useState('settings115Visible', () => false)
   const openSettings = () => { settings115Visible.value = true }
   const closeSettings = () => { settings115Visible.value = false }
   return { settings115Visible, openSettings, closeSettings }
@@ -35,6 +35,7 @@ export function use115Status() {
 
 /** 115 推送功能（按钮状态机） */
 export function use115Push() {
+  const { openSettings } = use115Settings()
   const pushLoading = ref<Record<string, boolean | string>>({})
 
   /**
@@ -52,7 +53,6 @@ export function use115Push() {
       if (res.error) {
         // 授权类错误 → 弹出设置框引导扫码
         if (res.kind === 'not_authorized' || res.kind === 'need_reauth') {
-          const { openSettings } = use115Settings()
           openSettings()
         }
         alert('推送到 115 失败: ' + res.error)

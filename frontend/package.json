@@ -7,15 +7,17 @@
     "dev": "nuxt dev --port 3000",
     "build": "nuxt build",
     "generate": "nuxt generate",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "bootstrap": "^5.3.0",
     "nuxt": "^3.16.0",
     "vue": "^3.5.0",
-    "vue-router": "^4.5.0",
-    "bootstrap": "^5.3.0"
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^2.3.0"
+    "@nuxt/devtools": "^2.3.0",
+    "@playwright/test": "^1.64.1"
   }
 }

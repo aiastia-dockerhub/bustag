@@ -12,11 +12,10 @@
       </ul>
     </div>
 
-    <div v-for="localItem in items" :key="localItem.id" class="card-item">
+    <div v-for="(localItem, index) in items" :key="localItem.id" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <img class="img-fluid coverimg" :src="imgProxyUrl(localItem.item.cover_img_url)"
-               @click="showImg(localItem.item.cover_img_url)" alt="cover" loading="lazy" />
+          <CoverImage :src="localItem.item.cover_img_url" :priority="index === 0" @click="showImg(localItem.item.cover_img_url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ localItem.item.fanhao }}</h6>
@@ -59,17 +58,29 @@ const pageInfo = ref(null)
 
 const showImg = (url) => showImage(imgProxyUrl(url))
 
-const loadData = async (page = 1) => {
-  try {
-    const res = await $fetch('/api/local', { params: { page } })
+const applyResponse = (res) => {
     items.value = res.items
     pageInfo.value = res.page_info
+}
+
+let listController
+onBeforeUnmount(() => listController?.abort())
+
+const loadData = async (page = 1) => {
+  listController?.abort()
+  listController = new AbortController()
+  try {
+    const res = await $fetch('/api/local', { params: { page }, signal: listController.signal })
+    applyResponse(res)
   } catch (e) {
+    if (e.name === 'AbortError') return
+    handle401(e)
     console.error('加载本地文件失败:', e)
   }
 }
 
 const goPage = (page) => loadData(page)
 
-onMounted(() => loadData())
+const { data: initial } = await useFetch('/api/local', { params: { page: 1 } })
+if (initial.value) applyResponse(initial.value)
 </script>

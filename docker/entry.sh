@@ -24,6 +24,10 @@ api_interval = 0.5
 batch_size = 100
 batch_interval = 5
 img_cache_enabled = true
+img_cache_max_mb = 1024
+
+[model]
+predict_chunk_size = 1000
 CONFEOF
 fi
 

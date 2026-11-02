@@ -24,11 +24,10 @@
     </div>
 
     <!-- 列表 -->
-    <div v-for="item in items" :key="item.fanhao" class="card-item">
+    <div v-for="(item, index) in items" :key="item.fanhao" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
-               @click="showImg(item.cover_img_url)" alt="cover" loading="lazy" />
+          <CoverImage :src="item.cover_img_url" :priority="index === 0" @click="showImg(item.cover_img_url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ item.fanhao }}</h6>
@@ -108,19 +107,30 @@ const isToday = (dateStr) => {
   return String(dateStr).startsWith(today)
 }
 
-const loadData = async (page = 1, bustCache = false) => {
-  loading.value = true
-  try {
-    const params = { like: like.value, page, type: movieType.value }
-    if (bustCache) params._t = Date.now()
-    const res = await $fetch('/api/index', { params })
+const applyResponse = (res) => {
     items.value = res.items
     pageInfo.value = res.page_info
     movieTypes.value = res.movie_types
     movieType.value = res.movie_type
     todayUpdate.value = res.today_update || 0
     todayRecommend.value = res.today_recommend || 0
+}
+
+let listController
+onBeforeUnmount(() => listController?.abort())
+
+const loadData = async (page = 1, bustCache = false) => {
+  loading.value = true
+  listController?.abort()
+  listController = new AbortController()
+  try {
+    const params = { like: like.value, page, type: movieType.value }
+    if (bustCache) params._t = Date.now()
+    const res = await $fetch('/api/index', { params, signal: listController.signal })
+    applyResponse(res)
   } catch (e) {
+    if (e.name === 'AbortError') return
+    handle401(e)
     console.error('加载推荐失败:', e)
   } finally {
     loading.value = false
@@ -158,5 +168,6 @@ const correct = async (fanhao, isCorrect, event) => {
   }
 }
 
-onMounted(() => loadData())
+const { data: initial } = await useFetch('/api/index', { params: { page: 1, type: movieType.value, like: like.value } })
+if (initial.value) applyResponse(initial.value)
 </script>

@@ -5,18 +5,19 @@ create classifier model and predict
 '''
 import re
 import html
-import threading
 import numpy as np
 from sklearn.metrics import (
     f1_score, recall_score, precision_score, confusion_matrix,
     roc_auc_score
 )
 from sklearn.model_selection import cross_val_score
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, early_stopping
+from sklearn.model_selection import train_test_split
+from bustag.model.operations import model_operation, ModelBusyError
 from bustag.model.prepare import prepare_data, prepare_predict_data
 from bustag.model.persist import load_model, dump_model
-from bustag.spider.db import RATE_TYPE, ItemRate, db
-from bustag.util import logger, get_data_path, MODEL_PATH
+from bustag.spider.db import RATE_TYPE, ItemRate, Item, fn, db, touch_data
+from bustag.util import logger, get_data_path, MODEL_PATH, APP_CONFIG
 
 MODEL_FILE = MODEL_PATH + 'model.pkl'
 FEATURE_NAMES_PATH = MODEL_PATH + 'feature_names.pkl'
@@ -26,13 +27,19 @@ RECOMMEND_THRESHOLD = 0.6
 # 分块预测的每块大小（控制内存峰值，避免 OOM）
 PREDICT_CHUNK_SIZE = 1000
 
-# 全局推荐锁：防止「用户点重新推荐」与「后台调度器自动推荐」并发跑导致内存翻倍
-_recommend_lock = threading.Lock()
+def load_bundle():
+    data = load_model(get_data_path(MODEL_FILE))
+    if isinstance(data, dict) and data.get('format') == 2:
+        return data
+    model, scores = data
+    return {'model': model, 'scores': scores,
+            'binarizers': load_model(get_data_path(MODEL_PATH + 'label_binarizer.pkl')),
+            'feature_names': None}
 
 
 def load():
-    model_data = load_model(get_data_path(MODEL_FILE))
-    return model_data
+    data = load_model(get_data_path(MODEL_FILE))
+    return (data['model'], data['scores']) if isinstance(data, dict) else data
 
 
 def create_model():
@@ -88,16 +95,11 @@ def _sanitize_name(name):
     return name
 
 
-def _get_readable_importances(model, top_n=15):
+def _get_readable_importances(model, top_n=15, feature_names=None):
     '''
     获取可读的特征重要性，将 f_0, f_1 映射回实际标签名
     所有标签名经过特殊字符清理，防止 HTML/日志注入
     '''
-    try:
-        feature_names = load_model(get_data_path(FEATURE_NAMES_PATH))
-    except (FileNotFoundError, Exception):
-        feature_names = None
-
     importances = model.feature_importances_
     top_indices = np.argsort(importances)[::-1][:top_n]
     readable = []
@@ -127,10 +129,17 @@ def _get_readable_importances(model, top_n=15):
     return readable
 
 
-def train():
+def train(progress=None, full_evaluation=False):
+    with model_operation():
+        return _train_locked(progress, full_evaluation)
+
+
+def _train_locked(progress=None, full_evaluation=False):
+    report = progress or (lambda **kwargs: None)
+    report(stage='准备训练特征', processed=0)
     model = create_model()
-    X_train, X_test, y_train, y_test = prepare_data()
-    total = len(X_test) + len(X_train)
+    X_train, X_test, y_train, y_test, binarizers, names = prepare_data(return_metadata=True)
+    total = X_test.shape[0] + X_train.shape[0]
     if total < MIN_TRAIN_NUM:
         raise ValueError(f'训练数据不足, 无法训练模型. 需要{MIN_TRAIN_NUM}, 当前{total}')
 
@@ -141,11 +150,14 @@ def train():
             f'训练数据只有一个类别({unique_classes}), 无法训练模型. '
             f'请确保既有"喜欢"也有"不喜欢"的打标数据')
 
-    # 训练模型（带早停）
-    model.fit(
-        X_train, y_train,
-        eval_set=[(X_test, y_test)],
-    )
+    report(stage='训练模型', processed=0, total=total)
+    X_fit, X_valid, y_fit, y_valid = train_test_split(
+        X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
+    model.fit(X_fit, y_fit, eval_set=[(X_valid, y_valid)],
+              eval_metric='binary_logloss', callbacks=[early_stopping(20, verbose=False)])
+    best_iteration = model.best_iteration_ or model.n_estimators
+    model.set_params(n_estimators=best_iteration)
+    model.fit(X_train, y_train)
 
     # --- 评估 ---
     y_pred = model.predict(X_test)
@@ -153,21 +165,18 @@ def train():
     confusion_mtx = confusion_matrix(y_test, y_pred, labels=[0, 1])
     scores = evaluate(confusion_mtx, y_test, y_pred, y_proba)
 
-    # --- 交叉验证（5折） ---
-    try:
-        cv_scores = cross_val_score(
-            model, X_train, y_train, cv=5, scoring='f1', n_jobs=1)
-        cv_mean = float('{:.2f}'.format(cv_scores.mean()))
-        cv_std = float('{:.2f}'.format(cv_scores.std()))
-        scores['cv_f1_mean'] = cv_mean
-        scores['cv_f1_std'] = cv_std
-        logger.info(f'5-Fold CV F1: {cv_mean} ± {cv_std}')
-    except Exception as e:
-        logger.warning(f'Cross-validation failed: {e}')
+    if full_evaluation:
+        report(stage='交叉验证', processed=0, total=5)
+        try:
+            cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1', n_jobs=1)
+            scores['cv_f1_mean'] = round(float(cv_scores.mean()), 2)
+            scores['cv_f1_std'] = round(float(cv_scores.std()), 2)
+        except ValueError as exc:
+            logger.warning('Cross-validation failed: %s', exc)
 
     # 记录可读的特征重要性 Top 15
     try:
-        readable = _get_readable_importances(model, top_n=15)
+        readable = _get_readable_importances(model, top_n=15, feature_names=names)
         logger.info('Top 15 feature importances (readable):')
         for name, imp in readable:
             logger.info(f'  {name}: {imp}')
@@ -176,16 +185,18 @@ def train():
         logger.warning(f'Failed to get readable importances: {e}')
 
     models_data = (model, scores)
-    dump_model(get_data_path(MODEL_FILE), models_data)
+    dump_model(get_data_path(MODEL_FILE), {'format': 2, 'model': model,
+               'scores': scores, 'binarizers': binarizers, 'feature_names': names})
+    report(stage='训练完成', processed=total, total=total)
     logger.info('new LightGBM model trained')
     return models_data
 
 
 def evaluate(confusion_mtx, y_test, y_pred, y_proba=None):
     tn, fp, fn, tp = confusion_mtx.ravel()
-    precision = precision_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
 
     logger.info(f'tp: {tp}, fp: {fp}')
     logger.info(f'fn: {fn}, tn: {tn}')
@@ -210,80 +221,56 @@ def evaluate(confusion_mtx, y_test, y_pred, y_proba=None):
     return model_scores
 
 
-def recommend():
-    '''
-    use trained model to recommend items
-    使用概率阈值而非硬分类，只推荐高概率喜欢的项目
+def clear_recommend():
+    with model_operation(), db.atomic():
+        deleted = ItemRate.delete().where(ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE).execute()
+        touch_data()
+        return {'success': True, 'deleted': deleted}
 
-    优化：分块加载 + 分块预测 + 批量写入，控制内存峰值避免 OOM；
-         持有全局锁防止与后台调度器的推荐任务并发执行。
-    Returns:
-        (total, recommended) 或 None（已有推荐任务在执行，本次跳过）
-    '''
-    # 非阻塞抢锁：若后台调度器已在推荐，立即返回 None，由调用方决定如何处理
-    if not _recommend_lock.acquire(blocking=False):
-        logger.warning('recommend() already running, skip this call')
+
+def recommend(*, reset=False, after_id=0, max_id=None, progress=None):
+    try:
+        with model_operation():
+            return _recommend_locked(reset=reset, after_id=after_id,
+                                     max_id=max_id, progress=progress)
+    except ModelBusyError:
         return None
 
-    try:
-        return _recommend_locked()
-    finally:
-        _recommend_lock.release()
 
-
-def _recommend_locked():
-    '''实际的推荐逻辑，调用前需已持有 _recommend_lock'''
-    # 模型只加载一次，避免分块预测时每块重复读盘 model.pkl
-    model, _ = load()
-
-    count = 0
-    total = 0
-    rate_type = RATE_TYPE.SYSTEM_RATE
-
-    # 关键：始终取 page=1。因为我们处理完一块就会给这些项写入 ItemRate 记录，
-    # 它们随即从未评分集合消失；下一轮 page=1 自然取到下一批未评分项。
-    # 若改成 page=1,2,3... 递增，由于每轮数据集都在缩小，OFFSET 会错位、跳过大量项。
-    # （相当于边遍历边删除，必须每次从头取。）
-    batch_no = 0
-    while True:
-        batch_no += 1
-        # 分块加载未评分数据：内存峰值 = 单块而非全量
-        ids, X, _ = prepare_predict_data(
-            page=1, page_size=PREDICT_CHUNK_SIZE)
-        if len(X) == 0:
+def _recommend_locked(*, reset=False, after_id=0, max_id=None, progress=None):
+    # Snapshot the entire artifact before deleting anything or reading any features.
+    bundle = load_bundle()
+    model, binarizers = bundle['model'], bundle['binarizers']
+    if max_id is None:
+        max_id = Item.select(fn.MAX(Item.id)).scalar() or 0
+    deleted = 0
+    if reset:
+        with db.atomic():
+            deleted = ItemRate.delete().where(ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE).execute()
+            touch_data()
+    count = total = 0
+    report = progress or (lambda **kwargs: None)
+    chunk_size = max(1, min(5000, int(APP_CONFIG.get('model.predict_chunk_size', PREDICT_CHUNK_SIZE))))
+    while after_id < max_id:
+        ids, X, cursor = prepare_predict_data(
+            page_size=chunk_size, after_id=after_id, max_id=max_id, binarizers=binarizers)
+        if X.shape[0] == 0:
             break
-
-        # 用已加载的模型分块预测概率
-        y_proba = model.predict_proba(X)[:, 1]
-
-        # 收集本块写入行，单次事务批量 INSERT（替代旧的逐条 save）
-        rows = []
-        for item_id, prob in zip(ids, y_proba):
-            if prob >= RECOMMEND_THRESHOLD:
-                rate_value = 1  # LIKE
-                count += 1
-            else:
-                rate_value = 0  # DISLIKE
-            rows.append({
-                'rate_type': rate_type,
-                'rate_value': rate_value,
-                'item': item_id,
-            })
-
-        if rows:
+        probabilities = model.predict_proba(X)[:, 1]
+        rows = [{'rate_type': RATE_TYPE.SYSTEM_RATE, 'rate_value': int(prob >= RECOMMEND_THRESHOLD),
+                 'item': item_id} for item_id, prob in zip(ids, probabilities)]
+        # A user may tag a row after it was fetched. Ignore that conflict, never overwrite it.
+        # Small writes stay below older SQLite parameter limits and release the writer quickly.
+        for offset in range(0, len(rows), 100):
+            batch = rows[offset:offset + 100]
             with db.atomic():
-                ItemRate.insert_many(rows).execute()
-
+                ItemRate.insert_many(batch).on_conflict_ignore().execute()
+                touch_data()
         total += len(ids)
-        logger.info(
-            f'recommend batch={batch_no}: +{len(ids)} '
-            f'(running total={total}, recommended={count})')
-
-        # 本块不足一页，说明未评分数据已处理完
-        if len(ids) < PREDICT_CHUNK_SIZE:
-            break
-
-    logger.warning(
-        f'predicted {total} items, recommended {count} '
-        f'(threshold={RECOMMEND_THRESHOLD})')
+        count += int(np.count_nonzero(probabilities >= RECOMMEND_THRESHOLD))
+        after_id = cursor
+        report(stage='推荐中', processed=total, recommended=count, cursor=cursor, max_id=max_id)
+    logger.warning(f'predicted {total} items, recommended {count}')
+    if reset:
+        return {'success': True, 'deleted': deleted, 'total': total, 'recommended': count}
     return total, count

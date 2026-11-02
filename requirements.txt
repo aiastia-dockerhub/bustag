@@ -15,6 +15,7 @@ requests>=2.31.0
 
 # 115 开放平台集成（扫码授权二维码渲染）
 qrcode>=7.4
+Pillow>=10.4
 
 # 定时任务
 APScheduler>=3.10.0

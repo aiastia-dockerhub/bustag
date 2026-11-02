@@ -35,7 +35,7 @@ def test_parse_movie_detail():
     assert 'series' in tag_types
     assert 'genre' in tag_types
     assert 'star' in tag_types
-    assert len(tags) == 7
+    assert len(tags) == 8
 
 
 def test_parse_movie_detail_no_extras():

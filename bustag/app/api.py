@@ -4,31 +4,48 @@ Bustag REST API - JSON 接口，供 Vue 前端调用
 import os
 import sys
 import re
-import hashlib
 import threading
 import time
-import traceback
+from collections import OrderedDict
 import bottle
-import requests as req_lib
-from bottle import route, run, template, static_file, request, response, redirect, hook
+from bottle import route, run, static_file, request, response, redirect, hook
 from bustag.util import APP_CONFIG
 
 # ============ 简易内存缓存 ============
-_api_cache = {}
+_api_cache = OrderedDict()
 _api_cache_lock = threading.Lock()
 
 def _cache_get(key, max_age=30):
     """获取缓存，max_age 秒内有效"""
     with _api_cache_lock:
         entry = _api_cache.get(key)
-        if entry and time.time() - entry['time'] < max_age:
+        if entry and time.monotonic() - entry['time'] < max_age:
+            _api_cache.move_to_end(key)
             return entry['data']
+        _api_cache.pop(key, None)
     return None
 
 def _cache_set(key, data):
     """设置缓存"""
     with _api_cache_lock:
-        _api_cache[key] = {'data': data, 'time': time.time()}
+        _api_cache[key] = {'data': data, 'time': time.monotonic()}
+        _api_cache.move_to_end(key)
+        while len(_api_cache) > 256:
+            _api_cache.popitem(last=False)
+
+def _invalidate_data():
+    from bustag.spider.db import touch_data
+    touch_data()
+    with _api_cache_lock:
+        _api_cache.clear()
+
+
+@hook('after_request')
+def _close_db_connection():
+    module = sys.modules.get('bustag.spider.db')
+    if module is not None and not module.db.is_closed():
+        module.db.close()
+
 
 # 增大 POST 请求体限制
 bottle.BaseRequest.MEMFILE_MAX = 10 * 1024 * 1024  # 10MB
@@ -39,7 +56,7 @@ def _remove_extra_tags(item):
     tags_dict = item.tags_dict
     tags = ['genre', 'star']
     for t in tags:
-        tags_dict[t] = tags_dict[t][:limit]
+        tags_dict[t] = tags_dict.get(t, [])[:limit]
 
 
 def _item_to_dict(item):
@@ -124,7 +141,8 @@ def api_index():
 
     # 绕过缓存（打标后刷新）
     bust = request.query.get('_t', None)
-    cache_key = f'index:{rate_value}:{page}:{movie_type}'
+    from bustag.spider.db import data_revision
+    cache_key = f'index:{data_revision()}:{rate_value}:{page}:{movie_type}'
 
     if not bust:
         cached = _cache_get(cache_key, max_age=30)
@@ -171,15 +189,11 @@ def api_correct(fanhao):
 
     item_rate = ItemRate.get_by_fanhao(fanhao)
     if item_rate:
-        item_rate.rate_type = RATE_TYPE.USER_RATE
-        if not is_correct:
-            rate_value = item_rate.rate_value
-            rate_value = 1 if rate_value == 0 else 0
-            item_rate.rate_value = rate_value
-        item_rate.save()
+        value = item_rate.rate_value if is_correct else 1 - item_rate.rate_value
+        ItemRate.set_user_rating(fanhao, value)
 
     # 清除相关缓存
-    _api_cache.clear()
+    _invalidate_data()
     return _json_response({'success': True})
 
 
@@ -191,7 +205,8 @@ def api_tagit():
     page = int(request.query.get('page', 1))
     movie_type = request.query.get('type', 'normal')
 
-    cache_key = f'tagit:{rate_value}:{page}:{movie_type}'
+    from bustag.spider.db import data_revision
+    cache_key = f'tagit:{data_revision()}:{rate_value}:{page}:{movie_type}'
     cached = _cache_get(cache_key, max_age=30)
     if cached:
         return _json_response(cached)
@@ -232,17 +247,13 @@ def api_tag(fanhao):
     data = request.json or {}
     rate_value = data.get('rate_value', 1)
 
-    item_rate = ItemRate.get_by_fanhao(fanhao)
-    if not item_rate:
-        rate_type = RATE_TYPE.USER_RATE
-        ItemRate.saveit(rate_type, rate_value, fanhao)
-    else:
-        item_rate.rate_value = rate_value
-        item_rate.rate_type = RATE_TYPE.USER_RATE
-        item_rate.save()
+    if rate_value not in (0, 1):
+        response.status = 400
+        return _json_response({'error': '评分只能为 0 或 1'})
+    ItemRate.set_user_rating(fanhao, rate_value)
 
     # 清除相关缓存
-    _api_cache.clear()
+    _invalidate_data()
     return _json_response({'success': True})
 
 
@@ -280,12 +291,13 @@ def api_local_fanhao():
         missed_fanhao, local_file_count, tag_file_count = add_local_fanhao(
             fanhao_list, tag_like)
         if len(missed_fanhao) > 0:
-            urls = [bus_spider.get_url_by_fanhao(fanhao) for fanhao in missed_fanhao]
-            add_download_job(urls)
+            add_download_job(missed_fanhao, movie_type=movie_type)
         msg = f'上传 {len(missed_fanhao)} 个番号, {local_file_count} 个本地文件'
         if tag_like:
             msg += f', {tag_file_count} 个打标为喜欢'
 
+    if request.method == 'POST':
+        _invalidate_data()
     return _json_response({'msg': msg})
 
 
@@ -294,7 +306,13 @@ def api_model():
     """模型信息"""
     try:
         import bustag.model.classifier as clf
-        _, model_scores = clf.load()
+        from bustag.util import get_data_path
+        stat = os.stat(get_data_path(clf.MODEL_FILE))
+        key = ('model', stat.st_mtime_ns, stat.st_size)
+        model_scores = _cache_get(key, max_age=300)
+        if model_scores is None:
+            _, model_scores = clf.load()
+            _cache_set(key, model_scores)
     except (FileNotFoundError, Exception):
         model_scores = None
 
@@ -318,35 +336,41 @@ def api_model():
     return _json_response(result)
 
 
-@route('/api/do-training')
-def api_do_training():
-    """训练模型"""
-    error_msg = None
-    model_scores = None
+def _submit_task(kind, payload=None):
+    from bustag.app.tasks import submit, ensure_worker
     try:
-        import bustag.model.classifier as clf
-        _, model_scores = clf.train()
-    except Exception as ex:
-        error_msg = ' '.join(str(a) for a in ex.args) if ex.args else str(ex)
+        job = submit(kind, payload)
+        ensure_worker()
+    except ValueError as exc:
+        response.status = 429
+        return _json_response({'error': str(exc)})
+    response.status = 202
+    return _json_response({'job': job})
 
-    result = {'error_msg': error_msg, 'model_scores': None}
-    if model_scores:
-        result['model_scores'] = {
-            'accuracy': model_scores.get('accuracy', None),
-            'precision': model_scores.get('precision', None),
-            'recall': model_scores.get('recall', None),
-            'f1': model_scores.get('f1', None),
-            'auc': model_scores.get('auc', None),
-            'cv_f1_mean': model_scores.get('cv_f1_mean', None),
-            'cv_f1_std': model_scores.get('cv_f1_std', None),
-        }
-        top_features = model_scores.get('top_features', None)
-        if top_features:
-            result['model_scores']['top_features'] = [
-                {'name': name, 'importance': imp} for name, imp in top_features
-            ]
 
-    return _json_response(result)
+@route('/api/do-training', method=['GET', 'POST'])
+def api_do_training():
+    payload = (request.json or {}) if request.method == 'POST' else {}
+    return _submit_task('train', {'full_evaluation': bool(payload.get('full_evaluation', False))})
+
+
+@route('/api/jobs')
+def api_jobs():
+    from bustag.app.tasks import Job, initialize, serialize
+    initialize()
+    jobs = Job.select().order_by(Job.created_at.desc()).limit(20)
+    return _json_response({'jobs': [serialize(job) for job in jobs]})
+
+
+@route('/api/jobs/<job_id>')
+def api_job(job_id):
+    from bustag.app.tasks import Job, initialize, serialize
+    initialize()
+    job = Job.get_or_none(Job.id == job_id)
+    if job is None:
+        response.status = 404
+        return _json_response({'error': '任务不存在'})
+    return _json_response({'job': serialize(job)})
 
 
 @route('/api/load_db', method='POST')
@@ -369,12 +393,12 @@ def api_load_db():
         except DBError:
             errmsg = '数据库文件错误, 请检查文件是否正确上传'
         else:
-            urls = [bus_spider.get_url_by_fanhao(fanhao) for fanhao in missed_fanhaos]
-            add_download_job(urls)
+            add_download_job(missed_fanhaos)
             msg = f'上传 {tag_file_added} 条用户打标数据, {len(missed_fanhaos)} 个番号'
     else:
         errmsg = '请上传数据库文件'
 
+    _invalidate_data()
     return _json_response({'msg': msg, 'errmsg': errmsg})
 
 
@@ -384,9 +408,11 @@ def _enrich_items_with_rate(items, rate_filter=''):
     '''
     from bustag.spider.db import ItemRate
 
+    rates = {rate.item_id: rate for rate in ItemRate.select().where(
+        ItemRate.item.in_([item.fanhao for item in items]))} if items else {}
     for it in items:
         _remove_extra_tags(it)
-        it_rate = ItemRate.get_by_fanhao(it.fanhao)
+        it_rate = rates.get(it.fanhao)
         it.rate_value = it_rate.rate_value if it_rate else None
         it.rate_type = it_rate.rate_type if it_rate else None
 
@@ -402,8 +428,8 @@ def api_search():
     star_id = request.query.get('star_id', '').strip()
     rate_filter = request.query.get('rate_filter', '').strip()
     page = int(request.query.get('page', 1))
-    genre_tags = db_module.get_genre_tags()
-    star_tags = db_module.get_star_tags()
+    include_tags = request.query.get('include_tags', 'false') == 'true'
+    dictionary = _tag_dictionary() if include_tags else {}
 
     item = None
     tag_items = []
@@ -415,8 +441,8 @@ def api_search():
         normalized = _normalize_fanhao(query)
         item = Item.get_by_fanhao(normalized) if normalized else None
         if item:
+            item = db_module.get_tags_for_items(db_module.Item.select().where(db_module.Item.id == item.id))[0]
             Item.loadit(item)
-            Item.get_tags_dict(item)
             # 查询打标状态
             item_rate = db_module.ItemRate.get_by_fanhao(item.fanhao)
             item.rate_value = item_rate.rate_value if item_rate else None
@@ -428,20 +454,14 @@ def api_search():
     elif tag_id:
         tag_items, page_info = db_module.get_items_by_tag_id(
             int(tag_id), page=page, rate_filter=rate_filter or None)
-        # 找到对应的 tag 名字用于显示
-        for t in genre_tags:
-            if str(t['id']) == tag_id:
-                tag_value = t['value']
-                break
+        tag = db_module.Tag.get_or_none(db_module.Tag.id == int(tag_id))
+        tag_value = tag.value if tag else ''
         _enrich_items_with_rate(tag_items)
     elif star_id:
         tag_items, page_info = db_module.get_items_by_tag_id(
             int(star_id), page=page, rate_filter=rate_filter or None)
-        # 找到对应的 star 名字用于显示
-        for t in star_tags:
-            if str(t['id']) == star_id:
-                tag_value = t['value']
-                break
+        tag = db_module.Tag.get_or_none(db_module.Tag.id == int(star_id))
+        tag_value = tag.value if tag else ''
         _enrich_items_with_rate(tag_items)
 
     result = {
@@ -450,85 +470,65 @@ def api_search():
         'tag_id': tag_id,
         'star_id': star_id,
         'rate_filter': rate_filter,
-        'genre_tags': genre_tags,
-        'star_tags': star_tags,
         'item': _item_rate_to_dict(item) if item else None,
         'tag_items': [_item_rate_to_dict(it) for it in tag_items],
         'page_info': _page_info_to_dict(page_info) if page_info else None,
     }
 
+    if include_tags:
+        result.update(dictionary)
     return _json_response(result)
 
 
-# 图片代理（复用原有的逻辑）
-_img_semaphore = threading.Semaphore(10)
+def _tag_dictionary():
+    from bustag.spider import db as db_module
+    key = f'tags:{db_module.data_revision()}'
+    data = _cache_get(key, max_age=300)
+    if data is None:
+        data = {'genre_tags': db_module.get_genre_tags(), 'star_tags': db_module.get_star_tags()}
+        _cache_set(key, data)
+    return data
 
 
-def _get_img_cache_dir():
-    cache_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data', 'img_cache')
-    cache_dir = os.path.abspath(cache_dir)
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir, exist_ok=True)
-    return cache_dir
-
-
-def _get_cached_img_path(img_url):
-    url_hash = hashlib.md5(img_url.encode()).hexdigest()
-    ext = '.jpg'
-    for e in ['.png', '.gif', '.webp', '.jpeg']:
-        if img_url.lower().endswith(e):
-            ext = e
-            break
-    return os.path.join(_get_img_cache_dir(), f'{url_hash}{ext}')
+@route('/api/tags')
+def api_tags():
+    from bustag.spider.db import data_revision
+    etag = f'"tags-{data_revision()}"'
+    response.set_header('ETag', etag)
+    response.set_header('Cache-Control', 'private, max-age=60')
+    if request.get_header('If-None-Match') == etag:
+        response.status = 304
+        return ''
+    return _json_response(_tag_dictionary())
 
 
 @route('/api/img_proxy')
 @route('/img_proxy')
 def api_img_proxy():
-    """图片代理"""
-    img_url = request.query.get('url', '')
-    if not img_url:
+    from urllib.parse import urlsplit
+    from bustag.app.images import get_image, cache_dir
+    url = request.query.get('url', '')
+    if urlsplit(url).scheme not in ('http', 'https'):
         response.status = 400
-        return 'Missing url parameter'
-
-    cache_enabled = APP_CONFIG.get('download.img_cache_enabled', 'true').lower() != 'false'
-    cache_path = _get_cached_img_path(img_url)
-
-    if cache_enabled and os.path.exists(cache_path):
-        ext = os.path.splitext(cache_path)[1]
-        content_types = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-                         '.gif': 'image/gif', '.webp': 'image/webp'}
-        response.content_type = content_types.get(ext, 'image/jpeg')
-        response.headers['Cache-Control'] = 'public, max-age=86400'
-        with open(cache_path, 'rb') as f:
-            return f.read()
-
-    with _img_semaphore:
-        try:
-            headers = {
-                'Referer': 'https://www.javbus.com/',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            r = req_lib.get(img_url, headers=headers, timeout=15)
-            r.raise_for_status()
-            img_data = r.content
-        except Exception as e:
-            response.status = 502
-            return f'Failed to fetch image: {e}'
-
-    if cache_enabled:
-        try:
-            tmp_path = cache_path + '.tmp'
-            with open(tmp_path, 'wb') as f:
-                f.write(img_data)
-            os.rename(tmp_path, cache_path)
-        except Exception:
-            pass
-
-    content_type = r.headers.get('Content-Type', 'image/jpeg')
-    response.content_type = content_type
-    response.headers['Cache-Control'] = 'public, max-age=86400'
-    return img_data
+        return 'Invalid image URL'
+    try:
+        width = int(request.query.get('w', 0))
+        path, data, mime = get_image(url, width)
+    except (ValueError, TypeError) as exc:
+        response.status = 400
+        return str(exc)
+    except Exception:
+        response.status = 502
+        return 'Failed to fetch image'
+    if path:
+        result = static_file(os.path.basename(path), root=cache_dir(), mimetype=mime)
+        result.set_header('Cache-Control', 'public, max-age=86400')
+        if os.environ.get('BUSTAG_ACCEL_IMAGES') == '1':
+            result.set_header('X-Accel-Redirect', '/_image_cache/' + os.path.basename(path))
+        return result
+    response.content_type = mime
+    response.set_header('Cache-Control', 'public, max-age=86400')
+    return data
 
 
 @route('/api/local_play/<id:int>')
@@ -542,58 +542,12 @@ def api_local_play(id):
 
 @route('/api/clear-recommend', method='POST')
 def api_clear_recommend():
-    """清理所有系统推荐记录（rate_type=2），保留用户打标"""
-    from bustag.spider.db import ItemRate, RATE_TYPE
-    try:
-        count = ItemRate.delete().where(
-            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
-        ).execute()
-        _api_cache.clear()
-        return _json_response({'success': True, 'deleted': count})
-    except Exception as e:
-        return _json_response({'success': False, 'error': str(e)})
+    return _submit_task('clear')
 
 
 @route('/api/re-recommend', method='POST')
 def api_re_recommend():
-    """清理旧推荐 + 重新推荐"""
-    from bustag.spider.db import ItemRate, RATE_TYPE
-    import bustag.model.classifier as clf
-
-    # 1. 清理旧推荐
-    try:
-        deleted = ItemRate.delete().where(
-            ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE
-        ).execute()
-    except Exception as e:
-        return _json_response({'success': False, 'error': f'清理失败: {e}'})
-
-    # 2. 重新推荐
-    try:
-        result = clf.recommend()
-        # recommend() 返回 None 表示已有推荐任务在执行（后台调度器正在跑）
-        if result is None:
-            _api_cache.clear()
-            return _json_response({
-                'success': False,
-                'error': '正在推荐中，请稍后再试',
-                'deleted': deleted,
-            })
-        total, recommended = result
-        _api_cache.clear()
-        return _json_response({
-            'success': True,
-            'deleted': deleted,
-            'total': total,
-            'recommended': recommended,
-        })
-    except Exception as e:
-        _api_cache.clear()
-        return _json_response({
-            'success': False,
-            'error': f'推荐失败: {e}',
-            'deleted': deleted,
-        })
+    return _submit_task('recommend')
 
 
 def _parse_magnet_size(m):
@@ -798,5 +752,7 @@ def start_app():
     port = int(APP_CONFIG.get('app.port', 8000))
     logger.info(f'Starting bustag API on {host}:{port}')
 
+    from bustag.app.tasks import ensure_worker
+    ensure_worker()
     start_scheduler()
     run(host=host, port=port, server='paste', quiet=True)

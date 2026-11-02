@@ -19,7 +19,8 @@ export async function fetchAuthStatus(force = false) {
   const auth = useAuthState()
   if (auth.value.checked && !force) return auth.value
   try {
-    const res = await $fetch<{ enabled: boolean; authed: boolean }>('/api/auth/status')
+    const fetcher = useRequestFetch()
+    const res = await fetcher<{ enabled: boolean; authed: boolean }>('/api/auth/status')
     auth.value = { checked: true, enabled: !!res.enabled, authed: !!res.authed }
   } catch {
     // 后端不可达时视为未登录（enabled 未知不跳转，避免误伤）

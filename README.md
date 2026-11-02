@@ -107,7 +107,7 @@ docker compose up -d
 ```bash
 # 后端
 pip install -r requirements.txt
-python bustag/app/index.py
+python -c "from bustag.app.api import start_app; start_app()"
 
 # 前端开发
 cd frontend
@@ -132,7 +132,7 @@ npm run dev
 ```bash
 # 本地运行
 export BUSTAG_PASSWORD=your-password
-python bustag/app/index.py
+python -c "from bustag.app.api import start_app; start_app()"
 
 # Docker Compose（docker-compose.yml 中取消注释对应行）
 # - BUSTAG_PASSWORD=your-password
@@ -229,9 +229,12 @@ img_cache_enabled = true
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | `/api/model` | GET | 获取模型信息和评估指标 |
-| `/api/do-training` | GET | 训练模型 |
-| `/api/re-recommend` | POST | 清理旧推荐 + 重新推荐所有未评分影片 |
-| `/api/clear-recommend` | POST | 清理所有系统推荐记录（保留用户打标） |
+| `/api/do-training` | POST（兼容 GET） | 提交训练任务，返回 HTTP 202 + job；可选 `full_evaluation` |
+| `/api/re-recommend` | POST | 提交清理旧推荐 + 重新推荐任务 |
+| `/api/clear-recommend` | POST | 提交清理系统推荐任务（保留用户打标） |
+| `/api/jobs` | GET | 最近 20 个后台任务及进度 |
+| `/api/jobs/<id>` | GET | 单个后台任务状态、结果或错误 |
+| `/api/tags` | GET | 搜索标签字典，支持 ETag；搜索分页不再重复返回字典 |
 
 ### 数据相关
 
@@ -256,9 +259,9 @@ data/
 ├── bus.db              # SQLite 数据库（自动创建）
 ├── img_cache/          # 图片缓存目录（自动创建）
 └── model/              # 模型文件（训练后自动创建）
-    ├── model.pkl
-    ├── label_binarizer.pkl
-    └── feature_names.pkl
+    ├── model.pkl         # 模型、评分、编码器、特征名的原子快照
+    ├── operation.lock    # 模型修改互斥锁
+    └── worker.lock       # 后台进程互斥锁
 ```
 
 ## 技术栈
@@ -268,6 +271,31 @@ data/
 - **机器学习**：LightGBM, scikit-learn, pandas, numpy
 - **爬虫**：javbus-api
 - **部署**：Docker Compose, Nginx, Supervisor
+
+## 性能与后台任务
+
+训练、重新推荐、清理推荐和爬取在独立后台进程中串行执行。提交接口立即返回 `202 {"job": {...}}`，通过 `/api/jobs/<id>` 查询 `queued / running / succeeded / failed`、进度和结果。模型页面会自动轮询，离开页面后任务继续运行，重新打开可查看进度。训练默认采用早停，勾选「完整评估」才运行额外的五折交叉验证。
+
+Docker 由 Supervisor 管理 worker；源码启动会自动拉起子进程，也可设置 `BUSTAG_EXTERNAL_WORKER=1` 并独立运行 `python -m bustag.app.worker`。中断的运行中任务在重启后标记失败，排队任务继续执行；完成记录保留七天。多个模型写入操作由跨进程锁保护，预测不会覆盖用户打标。
+
+首次启动自动回填 `item.add_day` 并建立查询索引，保留原有按添加日期、发行日期和 ID 排序的语义。建议升级前备份数据库；大型数据库首次迁移需要额外时间与索引磁盘空间。旧版三文件模型继续可读，下次训练后使用单文件快照。
+
+可在 `config.ini` 调整：
+
+```ini
+[download]
+img_cache_enabled = true
+img_cache_max_mb = 1024
+
+[model]
+predict_chunk_size = 1000
+```
+
+图片缓存上限包含原图和 480/960 像素 WebP 缩略图，后台约每分钟按最旧写入时间清理，流量突增期间可能暂时超过上限。预测批次限制为 1～5000，低内存设备可降低。保持原有爬虫限速，不额外提高上游并发。
+
+源码运行可用 `BUSTAG_DATA_DIR` 指定数据目录；Nuxt 服务可通过运行时环境变量 `NUXT_API_BASE` 指定后端（默认 `http://127.0.0.1:8000`）。SSR 会转发登录 cookie，不共享用户页面缓存。
+
+基准方法、结果和复现命令见 [性能验证记录](docs/performance.md)。
 
 ## 常见问题
 

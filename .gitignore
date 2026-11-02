@@ -75,3 +75,10 @@ app/bus.db
 # secrets - 登录会话密钥与 115 凭证（0600 服务端存储，严禁入库）
 data/secret_key
 data/115_token.json
+
+# Process coordination files
+data/*.lock
+
+# Browser test output
+frontend/test-results/
+frontend/playwright-report/

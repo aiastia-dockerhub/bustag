@@ -1,36 +1,37 @@
-from bustag.model.prepare import load_data, process_data, prepare_predict_data, prepare_data
+import numpy as np
+import pandas as pd
+from scipy import sparse
+from bustag.model.prepare import (load_data, as_dict, process_data, prepare_data,
+                                  prepare_predict_data, fit_features, transform_features)
 
 
-def test_load_data():
+def test_sparse_features(seeded_data):
     items = load_data()
-    print(len(items))
-    item = items[0]
-    print(item.fanhao, item.tags_dict)
-    assert len(items) > 0
+    assert len(items) == 240
+    df = pd.DataFrame(map(as_dict, items))
+    X, y = process_data(df, persist=False)
+    assert sparse.isspmatrix_csr(X) and X.dtype == np.float32
+    assert X.shape[0] == len(y) == 240
+    assert X.nnz < X.shape[0] * X.shape[1]
 
 
-def test_process_data():
-    items = load_data()
-    from bustag.model.prepare import as_dict
-    dicts = [as_dict(item) for item in items]
-    import pandas as pd
-    df = pd.DataFrame(dicts)
-    X, y = process_data(df)
-    print(f'Feature matrix shape: {X.shape}')
-    print(f'Labels shape: {y.shape}')
-    assert X.shape[0] == y.shape[0]
-    assert X.shape[1] > 0
+def test_prepare_data(seeded_data):
+    train, test, y_train, y_test = prepare_data()
+    assert train.shape[0] == 180 and test.shape[0] == 60
+    assert train.shape[1] == test.shape[1]
+    assert set(y_train) == set(y_test) == {0, 1}
 
 
-def test_prepare_data():
-    X_train, X_test, y_train, y_test = prepare_data()
-    print(f'Train: {X_train.shape}, Test: {X_test.shape}')
-    assert X_train.shape[0] > X_test.shape[0]
+def test_empty_prediction_needs_no_model():
+    ids, X, cursor = prepare_predict_data()
+    assert len(ids) == X.shape[0] == 0
+    assert cursor is None
 
 
-def test_prepare_predict_data():
-    ids, X, page_info = prepare_predict_data()
-    print(f'Predict data shape: {X.shape}')
-    if len(X) > 0:
-        print(f'Sample features: {X.iloc[0].values[:10]}')
-    print(f'IDs count: {len(ids)}')
+def test_unknown_labels_and_series_keep_column_order(seeded_data):
+    df = pd.DataFrame(map(as_dict, load_data()))
+    encoders, _ = fit_features(df)
+    expected = transform_features(df, encoders)
+    df.loc[0, 'genre_tags'].add('unknown-genre')
+    actual = transform_features(df, encoders)
+    assert (actual != expected).nnz == 0

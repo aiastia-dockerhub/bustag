@@ -15,10 +15,10 @@ const LS_SECRET = 'bustag_aria2_secret'
 const LS_DIR = 'bustag_aria2_dir'
 
 /** 设置弹框显隐（全局状态，单实例，挂载在 layout 中） */
-const settingsVisible = ref(false)
 
 /** 打开/关闭设置弹框 */
 export function useAria2Settings() {
+  const settingsVisible = useState('settingsVisible', () => false)
   const openSettings = () => { settingsVisible.value = true }
   const closeSettings = () => { settingsVisible.value = false }
   return { settingsVisible, openSettings, closeSettings }
@@ -128,6 +128,7 @@ export async function testAria2Connection(rpcUrl: string, secret: string): Promi
 
 /** Aria2 推送功能（按钮状态机） */
 export function useAria2() {
+  const { openSettings } = useAria2Settings()
   const aria2Loading = ref<Record<string, boolean | string>>({})
 
   /**
@@ -139,7 +140,6 @@ export function useAria2() {
 
     const { rpcUrl, secret, dir } = useAria2Config()
     if (!rpcUrl.value.trim()) {
-      const { openSettings } = useAria2Settings()
       openSettings()
       alert('请先配置 Aria2 RPC 地址')
       return false

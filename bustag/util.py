@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore', message='.*Trying to unpickle estimator.*')
 
 logger = logging.getLogger('bustag')
 TESTING = False
-DATA_PATH = 'data/'
+DATA_PATH = os.environ.get('BUSTAG_DATA_DIR', 'data/')
 CONFIG_FILE = 'config.ini'
 MODEL_PATH = 'model/'
 APP_CONFIG = {}
@@ -122,11 +122,11 @@ def to_localtime(utc_dt):
 
 
 def check_model_folder():
-    model_path = os.path.join(DATA_PATH, MODEL_PATH)
+    model_path = get_data_path(MODEL_PATH)
     abs_path = os.path.abspath(model_path)
     if not os.path.exists(abs_path):
         print(f'created model folder: {abs_path}')
-        os.mkdir(abs_path)
+        os.makedirs(abs_path, exist_ok=True)
 
 
 def init():

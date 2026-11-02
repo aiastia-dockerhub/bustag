@@ -47,8 +47,7 @@
     <div v-if="item" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <img class="img-fluid coverimg" :src="imgProxyUrl(item.cover_img_url)"
-               @click="showImg(item.cover_img_url)" alt="cover" />
+          <CoverImage :src="item.cover_img_url" :priority="true" @click="showImg(item.cover_img_url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -107,11 +106,10 @@
           {{ searchType === 'star' ? '👩 女优' : searchType === 'fanhao' ? '🔍 番号' : '🏷️ 标签' }}「{{ currentTag }}」共 {{ tagPageInfo?.total_items || tagItems.length || 0 }} 条
         </h6>
       </div>
-      <div v-for="tItem in tagItems" :key="tItem.fanhao" class="card-item">
+      <div v-for="(tItem, index) in tagItems" :key="tItem.fanhao" class="card-item">
         <div class="row g-3">
           <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-            <img class="img-fluid coverimg" :src="imgProxyUrl(tItem.cover_img_url)"
-                 @click="showImg(tItem.cover_img_url)" alt="cover" loading="lazy" />
+            <CoverImage :src="tItem.cover_img_url" :priority="index === 0" @click="showImg(tItem.cover_img_url)" />
           </div>
           <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -204,17 +202,6 @@ const applyRateFilter = async () => {
     await doTagSearch()
   } else if (searchType.value === 'star' && currentStarId.value) {
     await doStarSearch()
-  }
-}
-
-const loadTags = async () => {
-  if (genreTags.value.length > 0 && starTags.value.length > 0) return
-  try {
-    const res = await $fetch('/api/search', { params: { page: 1 } })
-    genreTags.value = res.genre_tags || []
-    starTags.value = res.star_tags || []
-  } catch (e) {
-    console.error('加载标签失败:', e)
   }
 }
 
@@ -362,5 +349,9 @@ const tagItem = async (fanhao, rateValue, event) => {
   }
 }
 
-onMounted(() => loadTags())
+const { data: dictionary } = await useFetch('/api/tags', { key: 'search-tags' })
+if (dictionary.value) {
+  genreTags.value = dictionary.value.genre_tags
+  starTags.value = dictionary.value.star_tags
+}
 </script>

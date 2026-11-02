@@ -100,7 +100,7 @@
   </ClientOnly>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { use115Settings, use115Status } from '~/composables/use115'
 
 const { settings115Visible, closeSettings } = use115Settings()

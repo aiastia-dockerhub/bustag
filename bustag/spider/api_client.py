@@ -6,6 +6,7 @@ javbus-api 客户端封装
 import time
 import threading
 import requests
+from bustag.http import session
 from bustag.util import logger, APP_CONFIG
 
 # 重试配置
@@ -26,12 +27,12 @@ def _rate_limit():
     '''请求速率限制，确保请求间隔不低于配置值'''
     global _last_request_time
     with _rate_lock:
-        now = time.time()
+        now = time.monotonic()
         interval = _get_api_interval()
         elapsed = now - _last_request_time
         if elapsed < interval:
             time.sleep(interval - elapsed)
-        _last_request_time = time.time()
+        _last_request_time = time.monotonic()
 
 
 def get_api_base_url():
@@ -93,7 +94,7 @@ def _request(endpoint, params=None):
     for attempt in range(1, MAX_RETRIES + 1):
         _rate_limit()
         try:
-            response = requests.get(url, params=params, headers=headers, timeout=30)
+            response = session().get(url, params=params, headers=headers, timeout=(5, 30))
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
