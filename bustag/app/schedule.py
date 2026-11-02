@@ -81,6 +81,14 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=tz)
     logger.info(f'Scheduler timezone: {tz}')
 
+    # 115 token 定时保活：每 30 分钟检查，临期自动刷新（未授权时为 no-op）
+    try:
+        from bustag.app import open115
+        scheduler.add_job(open115.keepalive, IntervalTrigger(seconds=1800),
+                          id='open115_keepalive')
+    except Exception as e:
+        logger.warning(f'115 保活任务注册失败: {e}')
+
     # 启动后立即执行一次
     t1 = datetime.now() + timedelta(seconds=1)
     date_trigger = DateTrigger(run_date=t1)

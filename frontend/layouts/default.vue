@@ -33,6 +33,12 @@
             <li class="nav-item">
               <a class="nav-link" href="#" @click.prevent="openSettings">⚙️ Aria2</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" @click.prevent="open115Settings">☁️ 115</a>
+            </li>
+            <li class="nav-item" v-if="auth.enabled && auth.authed">
+              <a class="nav-link text-warning" href="#" @click.prevent="onLogout">🚪 登出</a>
+            </li>
           </ul>
         </div>
       </div>
@@ -61,6 +67,9 @@
     <!-- Aria2 设置弹框 -->
     <Aria2SettingsModal />
 
+    <!-- 115 云下载设置弹框 -->
+    <Open115SettingsModal />
+
     <!-- 页脚 -->
     <footer class="py-3 mt-4">
       <div class="container">
@@ -85,4 +94,13 @@ const config = useRuntimeConfig()
 const version = config.public.appVersion || 'dev'
 const { modalUrl, hideImage } = useImageModal()
 const { openSettings } = useAria2Settings()
+const { openSettings: open115Settings } = use115Settings()
+
+// 登录态（BUSTAG_PASSWORD 启用时显示登出入口）
+const auth = useAuthState()
+onMounted(() => { fetchAuthStatus() })
+
+const onLogout = async () => {
+  await logout()
+}
 </script>

@@ -596,51 +596,189 @@ def api_re_recommend():
         })
 
 
-@route('/api/magnet/<fanhao>')
-def api_magnet(fanhao):
-    """获取影片的最大磁力链接（实时从 javbus-api 获取，不存数据库）"""
+def _parse_magnet_size(m):
+    """解析磁力链接的大小字符串，返回字节数"""
+    size_str = m.get('size', '0')
+    if isinstance(size_str, (int, float)):
+        return float(size_str)
+    size_str = str(size_str).upper().strip()
+    if 'GB' in size_str:
+        return float(size_str.replace('GB', '').strip()) * 1024 * 1024 * 1024
+    elif 'MB' in size_str:
+        return float(size_str.replace('MB', '').strip()) * 1024 * 1024
+    elif 'KB' in size_str:
+        return float(size_str.replace('KB', '').strip()) * 1024
+    try:
+        return float(size_str)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _get_best_magnet(fanhao):
+    """获取影片的最大磁力链接（实时从 javbus-api 获取，不存数据库）
+
+    返回 (magnet_dict, error)；成功时 error 为 None
+    """
     from bustag.spider import api_client
 
+    # 1. 获取影片详情，拿到 gid 和 uc
+    detail = api_client.get_movie_detail(fanhao)
+    gid = detail.get('gid')
+    uc = detail.get('uc')
+    if not gid or uc is None:
+        return None, '无法获取影片信息'
+
+    # 2. 获取磁力链接列表，找文件最大的磁力（按 size 排序）
+    magnets = api_client.get_magnets(fanhao, gid, uc)
+    if not magnets or not isinstance(magnets, list) or len(magnets) == 0:
+        return None, '暂无磁力链接'
+
+    best = max(magnets, key=_parse_magnet_size)
+    return {
+        'magnet': best.get('link', ''),
+        'size': best.get('size', ''),
+        'name': best.get('name', ''),
+        'count': len(magnets),
+    }, None
+
+
+@route('/api/magnet/<fanhao>')
+def api_magnet(fanhao):
+    """获取影片的最大磁力链接"""
     try:
-        # 1. 获取影片详情，拿到 gid 和 uc
-        detail = api_client.get_movie_detail(fanhao)
-        gid = detail.get('gid')
-        uc = detail.get('uc')
-        if not gid or uc is None:
-            return _json_response({'error': '无法获取影片信息'}, )
-
-        # 2. 获取磁力链接列表
-        magnets = api_client.get_magnets(fanhao, gid, uc)
-        if not magnets or not isinstance(magnets, list) or len(magnets) == 0:
-            return _json_response({'error': '暂无磁力链接'})
-
-        # 3. 找文件最大的磁力（按 size 排序）
-        def parse_size(m):
-            """解析磁力链接的大小，返回字节数"""
-            size_str = m.get('size', '0')
-            if isinstance(size_str, (int, float)):
-                return float(size_str)
-            size_str = str(size_str).upper().strip()
-            if 'GB' in size_str:
-                return float(size_str.replace('GB', '').strip()) * 1024 * 1024 * 1024
-            elif 'MB' in size_str:
-                return float(size_str.replace('MB', '').strip()) * 1024 * 1024
-            elif 'KB' in size_str:
-                return float(size_str.replace('KB', '').strip()) * 1024
-            try:
-                return float(size_str)
-            except (ValueError, TypeError):
-                return 0
-
-        best = max(magnets, key=parse_size)
-        return _json_response({
-            'magnet': best.get('link', ''),
-            'size': best.get('size', ''),
-            'name': best.get('name', ''),
-            'count': len(magnets),
-        })
+        result, error = _get_best_magnet(fanhao)
+        if error:
+            return _json_response({'error': error})
+        return _json_response(result)
     except Exception as e:
         return _json_response({'error': f'获取失败: {str(e)}'})
+
+
+# ============ 115 云下载 API ============
+
+def _115_error_response(e):
+    """Open115Error → HTTP 响应（need_reauth 用 401 语义码便于前端识别）"""
+    status = 401 if e.kind in ('need_reauth', 'not_authorized') else 400
+    return _json_response({'error': str(e), 'kind': e.kind, 'code': e.code})
+
+
+@route('/api/115/status')
+def api_115_status():
+    """115 连接状态（脱敏，不含 token）"""
+    from bustag.app import open115
+    return _json_response(open115.get_status())
+
+
+@route('/api/115/config', method='POST')
+def api_115_config():
+    """保存 115 应用配置（AppID / 保存目录 ID，服务端存储多设备共享）"""
+    from bustag.app import open115
+
+    data = request.json or {}
+    client_id = str(data.get('client_id', '')).strip()
+    if not client_id:
+        return _json_response({'error': 'AppID 不能为空'})
+    wp_path_id = str(data.get('wp_path_id', '0')).strip() or '0'
+    open115.save_config(client_id, wp_path_id)
+    return _json_response({'success': True, **open115.get_status()})
+
+
+@route('/api/115/quota')
+def api_115_quota():
+    """115 云下载配额"""
+    from bustag.app import open115
+    try:
+        return _json_response(open115.get_quota())
+    except open115.Open115Error as e:
+        return _115_error_response(e)
+    except Exception as e:
+        return _json_response({'error': str(e)})
+
+
+@route('/api/115/auth/start', method='POST')
+def api_115_auth_start():
+    """发起扫码授权：返回 uid + 二维码内容"""
+    from bustag.app import open115
+    try:
+        result = open115.start_qr_auth()
+        return _json_response(result)
+    except open115.Open115Error as e:
+        return _115_error_response(e)
+    except Exception as e:
+        return _json_response({'error': str(e)})
+
+
+@route('/api/115/auth/qr.svg')
+def api_115_auth_qr():
+    """渲染待授权二维码（SVG）"""
+    from bustag.app import open115
+
+    uid = request.query.get('uid', '')
+    qrcode_content = open115.get_pending_qrcode(uid)
+    if not qrcode_content:
+        response.status = 404
+        response.content_type = 'text/plain; charset=utf-8'
+        return '二维码不存在或已过期'
+    try:
+        svg = open115.render_qr_svg(qrcode_content)
+    except ImportError:
+        response.status = 500
+        return '缺少 qrcode 依赖，请 pip install qrcode'
+    response.content_type = 'image/svg+xml'
+    return svg
+
+
+@route('/api/115/auth/poll')
+def api_115_auth_poll():
+    """轮询扫码授权状态（服务端长轮询 115，最长约 25 秒）"""
+    from bustag.app import open115
+
+    uid = request.query.get('uid', '')
+    if not uid:
+        return _json_response({'status': 'expired'})
+    try:
+        status = open115.poll_qr_auth(uid)
+        return _json_response({'status': status})
+    except open115.Open115Error as e:
+        return _json_response({'status': 'error', 'error': str(e)})
+    except Exception as e:
+        return _json_response({'status': 'error', 'error': str(e)})
+
+
+@route('/api/115/auth/logout', method='POST')
+def api_115_auth_logout():
+    """解除 115 授权（清除凭证，保留 AppID 配置）"""
+    from bustag.app import open115
+    open115.clear_auth()
+    return _json_response({'success': True, **open115.get_status()})
+
+
+@route('/api/115/push/<fanhao>', method='POST')
+def api_115_push(fanhao):
+    """推送影片的最大磁力到 115 云下载"""
+    from bustag.app import open115
+
+    if not open115.is_connected():
+        return _json_response({'error': '尚未授权 115 账号', 'kind': 'not_authorized'})
+    try:
+        result, error = _get_best_magnet(fanhao)
+        if error:
+            return _json_response({'error': error})
+        magnet = result['magnet']
+        if not magnet:
+            return _json_response({'error': '暂无磁力链接'})
+
+        task = open115.add_magnet_task(magnet)
+        return _json_response({
+            'success': True,
+            'info_hash': task.get('info_hash', ''),
+            'name': result.get('name', ''),
+            'size': result.get('size', ''),
+        })
+    except open115.Open115Error as e:
+        return _115_error_response(e)
+    except Exception as e:
+        return _json_response({'error': f'推送失败: {str(e)}'})
 
 
 @route('/api/version')
@@ -654,6 +792,7 @@ def start_app():
     """启动 Bottle API 服务 + 定时任务调度"""
     from bustag.app.schedule import start_scheduler
     from bustag.util import logger
+    import bustag.app.auth  # noqa: F401  注册登录保护钩子与 /api/auth/* 路由
 
     host = APP_CONFIG.get('app.host', '127.0.0.1')
     port = int(APP_CONFIG.get('app.port', 8000))

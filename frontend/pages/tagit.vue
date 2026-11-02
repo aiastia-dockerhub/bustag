@@ -61,6 +61,12 @@
             <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
             <template v-else>⬇️ Aria2</template>
           </button>
+          <button class="btn btn-outline-warning btn-sm" @click="sendTo115(item.fanhao)"
+                  :disabled="!!push115Loading[item.fanhao]">
+            <template v-if="push115Loading[item.fanhao] === 'done'">✅ 已推送</template>
+            <template v-else-if="push115Loading[item.fanhao]">⏳</template>
+            <template v-else>☁️ 115</template>
+          </button>
           <button class="btn btn-outline-success btn-sm" @click="tag(item.fanhao, 1, $event)">👍 喜欢</button>
           <button class="btn btn-outline-danger btn-sm" @click="tag(item.fanhao, 0, $event)">👎 不喜欢</button>
         </div>
@@ -81,6 +87,7 @@
 const { showImage } = useImageModal()
 const { magnetLoading, copyMagnet } = useMagnet()
 const { aria2Loading, sendToAria2 } = useAria2()
+const { pushLoading: push115Loading, sendTo115 } = use115Push()
 
 const items = ref([])
 const pageInfo = ref(null)

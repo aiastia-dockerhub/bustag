@@ -13,6 +13,9 @@ pymysql>=1.1.0
 # HTTP 请求（API 调用）
 requests>=2.31.0
 
+# 115 开放平台集成（扫码授权二维码渲染）
+qrcode>=7.4
+
 # 定时任务
 APScheduler>=3.10.0
 

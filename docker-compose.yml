@@ -22,6 +22,8 @@ services:
       - TZ=Asia/Shanghai
       - JAVBUS_API_URL=http://javbus-api:3000
       # - JAVBUS_AUTH_TOKEN=your_token_here
+      # Web 登录密码（设置后所有 /api 接口需密码登录访问；不设置则无登录）
+      # - BUSTAG_PASSWORD=your-password-here
     volumes:
       - ./data:/app/data
     depends_on:
