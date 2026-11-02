@@ -168,10 +168,43 @@ footer a:hover {
   border-bottom: 1px solid #e9ecef;
 }
 
-/* ===== 按钮组间距 ===== */
+/* ===== 影片操作：三项下载操作 + 两项评分操作 ===== */
 .action-buttons {
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.action-buttons > .btn {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.45rem 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.action-buttons > .btn:nth-last-child(-n + 2) {
+  grid-column: span 3;
+}
+
+/* iPad 横竖屏：独占卡片底部一行，五个按钮等宽。 */
+@media (min-width: 576px) and (max-width: 1199.98px) {
+  .action-buttons {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-top: 1px solid #e9ecef;
+    padding-top: 0.75rem;
+  }
+
+  .action-buttons > .btn,
+  .action-buttons > .btn:nth-last-child(-n + 2) {
+    grid-column: auto;
+  }
 }
 
 /* ===== 响应式 ===== */

@@ -128,6 +128,7 @@ export async function testAria2Connection(rpcUrl: string, secret: string): Promi
 
 /** Aria2 推送功能（按钮状态机） */
 export function useAria2() {
+  const { notify } = useNotifications()
   const { openSettings } = useAria2Settings()
   const aria2Loading = ref<Record<string, boolean | string>>({})
 
@@ -141,7 +142,7 @@ export function useAria2() {
     const { rpcUrl, secret, dir } = useAria2Config()
     if (!rpcUrl.value.trim()) {
       openSettings()
-      alert('请先配置 Aria2 RPC 地址')
+      notify('error', '请先配置 Aria2 RPC 地址，再提交下载任务。')
       return false
     }
 
@@ -150,12 +151,12 @@ export function useAria2() {
       // 1. 通过 bustag 后端获取最大磁力链接
       const magnetRes = await $fetch<any>(`/api/magnet/${fanhao}`)
       if (magnetRes.error) {
-        alert('获取磁力失败: ' + magnetRes.error)
+        notify('error', `${fanhao} · Aria2 提交失败：${magnetRes.error}`)
         return false
       }
       const magnet = magnetRes.magnet
       if (!magnet) {
-        alert('暂无磁力链接')
+        notify('error', `${fanhao} · 暂无磁力链接，未提交到 Aria2。`)
         return false
       }
 
@@ -175,10 +176,14 @@ export function useAria2() {
       )
 
       if (data.error) {
-        alert('Aria2 拒绝任务: ' + (data.error.message || JSON.stringify(data.error)))
+        notify('error', `${fanhao} · Aria2 拒绝任务：${data.error.message || JSON.stringify(data.error)}`)
         return false
       }
 
+      if (typeof data.result !== 'string' || !data.result) {
+        throw new Error('Aria2 未返回任务 ID，请检查下载列表后重试')
+      }
+      notify('success', `${fanhao} · 已提交到 Aria2，请在下载器查看进度。`)
       // 成功：data.result 是 GID
       aria2Loading.value[fanhao] = 'done'
       setTimeout(() => {
@@ -191,7 +196,8 @@ export function useAria2() {
       else if (e.name === 'TypeError' || /fetch/i.test(detail)) {
         detail = '无法连接到 Aria2（请检查 RPC 地址是否正确、网络是否可达、或 CORS 是否开启）'
       }
-      alert('发送到 Aria2 失败: ' + detail)
+      handle401(e)
+      notify('error', `${fanhao} · Aria2 提交失败：${detail}`)
       return false
     } finally {
       if (aria2Loading.value[fanhao] !== 'done') {

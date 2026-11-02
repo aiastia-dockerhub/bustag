@@ -35,6 +35,7 @@ export function use115Status() {
 
 /** 115 推送功能（按钮状态机） */
 export function use115Push() {
+  const { notify } = useNotifications()
   const { openSettings } = use115Settings()
   const pushLoading = ref<Record<string, boolean | string>>({})
 
@@ -48,20 +49,26 @@ export function use115Push() {
     pushLoading.value[fanhao] = true
     try {
       const res = await $fetch<any>(`/api/115/push/${fanhao}`, { method: 'POST' })
-        .catch(e => ({ error: e.data?.error || e.message, kind: e.data?.kind }))
 
       if (res.error) {
         // 授权类错误 → 弹出设置框引导扫码
         if (res.kind === 'not_authorized' || res.kind === 'need_reauth') {
           openSettings()
         }
-        alert('推送到 115 失败: ' + res.error)
+        notify('error', `${fanhao} · 115 提交失败：${res.error}`)
         return false
       }
 
+      if (!res.success) throw new Error('服务器未确认任务提交，请检查 115 任务列表')
+      notify('success', `${fanhao} · 已提交到 115 云下载，请在 115 查看下载进度。`)
       pushLoading.value[fanhao] = 'done'
       setTimeout(() => { pushLoading.value[fanhao] = false }, 2000)
       return true
+    } catch (e: any) {
+      if (['not_authorized', 'need_reauth'].includes(e.data?.kind)) openSettings()
+      else handle401(e)
+      notify('error', `${fanhao} · 115 提交失败：${e.data?.error || e.message || '网络请求失败'}`)
+      return false
     } finally {
       if (pushLoading.value[fanhao] !== 'done') {
         pushLoading.value[fanhao] = false

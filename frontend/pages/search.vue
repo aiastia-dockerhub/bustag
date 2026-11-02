@@ -49,7 +49,7 @@
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
           <CoverImage :src="item.cover_img_url" :referer="item.url" :priority="true" @click="showImg(item.cover_img_url, item.url)" />
         </div>
-        <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
+        <div class="col-12 col-sm-6 col-md-7 col-lg-8 col-xl-5 d-flex flex-column">
           <div class="d-flex align-items-center gap-2 mb-1">
             <h5 class="mb-0 fw-bold">{{ item.fanhao }}</h5>
             <span v-if="item.rate_type === 1 && item.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
@@ -69,27 +69,29 @@
             <span v-for="t in item.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
           </div>
         </div>
-        <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
-          <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(item.fanhao)"
-                  :disabled="!!magnetLoading[item.fanhao]">
-            <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
-            <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
-            <template v-else>🧲 磁力</template>
-          </button>
-          <button class="btn btn-outline-primary btn-sm me-2" @click="sendToAria2(item.fanhao)"
-                  :disabled="!!aria2Loading[item.fanhao]">
-            <template v-if="aria2Loading[item.fanhao] === 'done'">✅ 已发送</template>
-            <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
-            <template v-else>⬇️ Aria2</template>
-          </button>
-          <button class="btn btn-outline-warning btn-sm me-2" @click="sendTo115(item.fanhao)"
-                  :disabled="!!push115Loading[item.fanhao]">
-            <template v-if="push115Loading[item.fanhao] === 'done'">✅ 已推送</template>
-            <template v-else-if="push115Loading[item.fanhao]">⏳</template>
-            <template v-else>☁️ 115</template>
-          </button>
-          <button class="btn btn-outline-success btn-sm me-2" @click="tagItem(item.fanhao, 1, $event)">👍 喜欢</button>
-          <button class="btn btn-outline-danger btn-sm" @click="tagItem(item.fanhao, 0, $event)">👎 不喜欢</button>
+        <div class="col-12 col-xl-3 d-flex align-items-center">
+          <div class="action-buttons" role="group" aria-label="影片操作">
+            <button class="btn btn-outline-info btn-sm" @click="copyMagnet(item.fanhao)"
+                    :disabled="!!magnetLoading[item.fanhao]">
+              <template v-if="magnetLoading[item.fanhao] === 'done'">✅ 已复制</template>
+              <template v-else-if="magnetLoading[item.fanhao]">⏳</template>
+              <template v-else>🧲 磁力</template>
+            </button>
+            <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(item.fanhao)"
+                    :disabled="!!aria2Loading[item.fanhao]">
+              <template v-if="aria2Loading[item.fanhao] === 'done'">✅ 已发送</template>
+              <template v-else-if="aria2Loading[item.fanhao]">⏳</template>
+              <template v-else>⬇️ Aria2</template>
+            </button>
+            <button class="btn btn-outline-warning btn-sm" @click="sendTo115(item.fanhao)"
+                    :disabled="!!push115Loading[item.fanhao]">
+              <template v-if="push115Loading[item.fanhao] === 'done'">✅ 已推送</template>
+              <template v-else-if="push115Loading[item.fanhao]">⏳</template>
+              <template v-else>☁️ 115</template>
+            </button>
+            <button class="btn btn-outline-success btn-sm" @click="tagItem(item.fanhao, 1, $event)">👍 喜欢</button>
+            <button class="btn btn-outline-danger btn-sm" @click="tagItem(item.fanhao, 0, $event)">👎 不喜欢</button>
+          </div>
         </div>
       </div>
     </div>
@@ -111,7 +113,7 @@
           <div class="col-12 col-sm-6 col-md-5 col-lg-4">
             <CoverImage :src="tItem.cover_img_url" :referer="tItem.url" :priority="index === 0" @click="showImg(tItem.cover_img_url, tItem.url)" />
           </div>
-          <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
+          <div class="col-12 col-sm-6 col-md-7 col-lg-8 col-xl-5 d-flex flex-column">
             <div class="d-flex align-items-center gap-2 mb-1">
               <h6 class="mb-0 fw-bold">{{ tItem.fanhao }}</h6>
               <span v-if="tItem.rate_type === 1 && tItem.rate_value === 1" class="badge bg-success">🟢 喜欢</span>
@@ -133,27 +135,29 @@
               <span v-for="t in tItem.tags_dict.star" :key="t" class="badge bg-warning text-dark badge-tag me-1 mb-1">{{ t }}</span>
             </div>
           </div>
-          <div class="col-12 col-sm-12 col-md-3 col-lg-3 d-flex align-items-center justify-content-md-end">
-            <button class="btn btn-outline-info btn-sm me-2" @click="copyMagnet(tItem.fanhao)"
-                    :disabled="!!magnetLoading[tItem.fanhao]">
-              <template v-if="magnetLoading[tItem.fanhao] === 'done'">✅ 已复制</template>
-              <template v-else-if="magnetLoading[tItem.fanhao]">⏳</template>
-              <template v-else>🧲 磁力</template>
-            </button>
-            <button class="btn btn-outline-primary btn-sm me-2" @click="sendToAria2(tItem.fanhao)"
-                    :disabled="!!aria2Loading[tItem.fanhao]">
-              <template v-if="aria2Loading[tItem.fanhao] === 'done'">✅ 已发送</template>
-              <template v-else-if="aria2Loading[tItem.fanhao]">⏳</template>
-              <template v-else>⬇️ Aria2</template>
-            </button>
-            <button class="btn btn-outline-warning btn-sm me-2" @click="sendTo115(tItem.fanhao)"
-                    :disabled="!!push115Loading[tItem.fanhao]">
-              <template v-if="push115Loading[tItem.fanhao] === 'done'">✅ 已推送</template>
-              <template v-else-if="push115Loading[tItem.fanhao]">⏳</template>
-              <template v-else>☁️ 115</template>
-            </button>
-            <button class="btn btn-outline-success btn-sm me-2" @click="tagItem(tItem.fanhao, 1, $event)">👍</button>
-            <button class="btn btn-outline-danger btn-sm" @click="tagItem(tItem.fanhao, 0, $event)">👎</button>
+          <div class="col-12 col-xl-3 d-flex align-items-center">
+            <div class="action-buttons" role="group" aria-label="影片操作">
+              <button class="btn btn-outline-info btn-sm" @click="copyMagnet(tItem.fanhao)"
+                      :disabled="!!magnetLoading[tItem.fanhao]">
+                <template v-if="magnetLoading[tItem.fanhao] === 'done'">✅ 已复制</template>
+                <template v-else-if="magnetLoading[tItem.fanhao]">⏳</template>
+                <template v-else>🧲 磁力</template>
+              </button>
+              <button class="btn btn-outline-primary btn-sm" @click="sendToAria2(tItem.fanhao)"
+                      :disabled="!!aria2Loading[tItem.fanhao]">
+                <template v-if="aria2Loading[tItem.fanhao] === 'done'">✅ 已发送</template>
+                <template v-else-if="aria2Loading[tItem.fanhao]">⏳</template>
+                <template v-else>⬇️ Aria2</template>
+              </button>
+              <button class="btn btn-outline-warning btn-sm" @click="sendTo115(tItem.fanhao)"
+                      :disabled="!!push115Loading[tItem.fanhao]">
+                <template v-if="push115Loading[tItem.fanhao] === 'done'">✅ 已推送</template>
+                <template v-else-if="push115Loading[tItem.fanhao]">⏳</template>
+                <template v-else>☁️ 115</template>
+              </button>
+              <button class="btn btn-outline-success btn-sm" @click="tagItem(tItem.fanhao, 1, $event)">👍 喜欢</button>
+              <button class="btn btn-outline-danger btn-sm" @click="tagItem(tItem.fanhao, 0, $event)">👎 不喜欢</button>
+            </div>
           </div>
         </div>
       </div>

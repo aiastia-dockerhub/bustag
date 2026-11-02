@@ -64,6 +64,8 @@
       </div>
     </ClientOnly>
 
+    <AppNotifications />
+
     <!-- Aria2 设置弹框 -->
     <Aria2SettingsModal />
 
