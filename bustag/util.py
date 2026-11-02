@@ -74,11 +74,11 @@ def get_full_url(path):
     '''
     获取完整 URL
     如果 path 已经是完整 URL，直接返回
-    否则与 api_base_url 拼接
+    否则与 javbus_url 拼接为影片来源页
     '''
     if path and path.startswith(('http://', 'https://')):
         return path
-    root_path = APP_CONFIG.get('download.api_base_url', 'http://localhost:3000')
+    root_path = APP_CONFIG.get('download.javbus_url', 'https://www.javbus.com')
     full_url = urljoin(root_path + '/', path.lstrip('/'))
     return full_url
 

@@ -2,6 +2,8 @@
 import hashlib
 import io
 import os
+import stat
+from urllib.parse import urlsplit
 import tempfile
 import threading
 import time
@@ -36,15 +38,50 @@ def _atomic_write(path, data):
     try:
         with os.fdopen(fd, 'wb') as stream:
             stream.write(data)
+            # Nginx runs as www-data; mkstemp otherwise leaves root-owned 0600 files.
+            os.fchmod(stream.fileno(), 0o644)
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
 
 
-def _download(url):
+def _source_referer(source=None):
+    referer = (APP_CONFIG.get('download.img_referer') or source
+               or APP_CONFIG.get('download.javbus_url') or 'https://www.javbus.com/').strip()
+    parsed = urlsplit(referer)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc or any(
+            char in referer for char in ('\r', '\n')):
+        raise ValueError('图片来源必须为有效的 HTTP(S) 页面地址')
+    return referer
+
+
+def can_accelerate(path):
+    """Fall back to Bottle when the unprivileged Nginx worker cannot traverse data/."""
+    if os.environ.get('BUSTAG_ACCEL_IMAGES') != '1':
+        return False
+    try:
+        if not os.stat(path).st_mode & stat.S_IROTH:
+            os.chmod(path, 0o644)  # Repair images cached by the previous release.
+        directory = os.path.dirname(os.path.abspath(path))
+        if os.path.realpath(directory) != os.path.realpath('/app/data/img_cache'):
+            return False  # The Nginx internal alias points to this Docker directory only.
+        while True:
+            if not os.stat(directory).st_mode & stat.S_IXOTH:
+                return False
+            parent = os.path.dirname(directory)
+            if parent == directory:
+                return True
+            directory = parent
+    except OSError:
+        return False
+
+
+def _download(url, referer=None):
     with _slots, session().get(url, headers={
-        'Referer': 'https://www.javbus.com/', 'User-Agent': 'Mozilla/5.0'},
+        'Referer': _source_referer(referer),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'},
         timeout=(5, 15), stream=True) as result:
         result.raise_for_status()
         data = bytearray()
@@ -73,7 +110,7 @@ def content_type(path_or_stream):
         return Image.MIME.get(image.format, 'image/jpeg')
 
 
-def get_image(url, width=0):
+def get_image(url, width=0, referer=None):
     if width not in (0, 480, 960):
         raise ValueError('不支持的图片尺寸')
     enabled = APP_CONFIG.get('download.img_cache_enabled', 'true').lower() != 'false'
@@ -87,7 +124,7 @@ def get_image(url, width=0):
             with open(original, 'rb') as stream:
                 data = stream.read()
         else:
-            data = _download(url)
+            data = _download(url, referer)
             if enabled:
                 _atomic_write(original, data)
         if width:

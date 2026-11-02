@@ -29,7 +29,7 @@
     <div v-for="(item, index) in items" :key="item.fanhao" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <CoverImage :src="item.cover_img_url" :priority="index === 0" @click="showImg(item.cover_img_url)" />
+          <CoverImage :src="item.cover_img_url" :referer="item.url" :priority="index === 0" @click="showImg(item.cover_img_url, item.url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ item.fanhao }}</h6>
@@ -94,7 +94,7 @@ const like = ref(null)
 const movieTypes = ref(['normal'])
 const movieType = ref('normal')
 
-const showImg = (url) => showImage(imgProxyUrl(url))
+const showImg = (url, referer) => showImage(imgProxyUrl(url, 0, referer))
 
 const applyResponse = (res) => {
     items.value = res.items

@@ -7,8 +7,8 @@ const API_BASE = '/api'
 // ---------- 通用辅助 ----------
 
 /** 图片代理 URL */
-export const imgProxyUrl = (url: string, width = 0) =>
-  `/img_proxy?url=${encodeURIComponent(url)}${width ? `&w=${width}` : ""}`
+export const imgProxyUrl = (url: string, width = 0, referer = '') =>
+  `/img_proxy?url=${encodeURIComponent(url)}${width ? `&w=${width}` : ""}${referer ? `&referer=${encodeURIComponent(referer)}` : ""}`
 
 /** GET 请求（带缓存，SSR 友好） */
 function apiGet<T>(path: string, params?: Record<string, any>) {

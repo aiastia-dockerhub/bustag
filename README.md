@@ -285,6 +285,8 @@ Docker 由 Supervisor 管理 worker；源码启动会自动拉起子进程，也
 ```ini
 [download]
 img_cache_enabled = true
+# 可选：指定图片防盗链来源；默认传递影片来源页，无来源时使用 javbus_url
+# img_referer = https://www.javbus.com/
 img_cache_max_mb = 1024
 
 [model]

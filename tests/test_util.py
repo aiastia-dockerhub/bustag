@@ -48,3 +48,10 @@ def test_config_defaults():
     print(conf.get('download', 'count'))
     print(conf.get('download', 'interval'))
     print(conf.get('options', 'proxy'))
+
+
+def test_relative_movie_url_uses_website_source(monkeypatch):
+    monkeypatch.setitem(util.APP_CONFIG, 'download.javbus_url', 'https://bus.example')
+    monkeypatch.setitem(util.APP_CONFIG, 'download.api_base_url', 'http://api.internal:3000')
+    assert util.get_full_url('/ABC-123') == 'https://bus.example/ABC-123'
+    assert util.get_full_url('https://original.example/ABC-123') == 'https://original.example/ABC-123'

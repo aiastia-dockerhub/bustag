@@ -17,6 +17,8 @@ test('SSR authentication, hydration, thumbnails, model tasks and mobile layout',
  await page.waitForLoadState('networkidle');
  if(requests.some(url => url.includes('/api/index'))) throw new Error('Duplicate client hydration fetch');
  const dimensions=await page.locator('.coverimg').first().evaluate((img: HTMLImageElement) => ({natural:img.naturalWidth, loading:img.loading}));
+ const coverSource = await page.locator('.coverimg').first().getAttribute('src');
+ expect(new URL(coverSource!, page.url()).searchParams.get('referer')).toMatch(/^https:\/\/example\.com\//);
  if(!dimensions.natural || dimensions.natural>960 || dimensions.loading!=='eager') throw new Error(JSON.stringify(dimensions));
  await page.locator('.coverimg').first().click();
  await expect(page.locator('.img-modal-overlay')).toBeVisible();

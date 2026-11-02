@@ -47,7 +47,7 @@
     <div v-if="item" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <CoverImage :src="item.cover_img_url" :priority="true" @click="showImg(item.cover_img_url)" />
+          <CoverImage :src="item.cover_img_url" :referer="item.url" :priority="true" @click="showImg(item.cover_img_url, item.url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -109,7 +109,7 @@
       <div v-for="(tItem, index) in tagItems" :key="tItem.fanhao" class="card-item">
         <div class="row g-3">
           <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-            <CoverImage :src="tItem.cover_img_url" :priority="index === 0" @click="showImg(tItem.cover_img_url)" />
+            <CoverImage :src="tItem.cover_img_url" :referer="tItem.url" :priority="index === 0" @click="showImg(tItem.cover_img_url, tItem.url)" />
           </div>
           <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -186,7 +186,7 @@ const loading = ref(false)
 const searched = ref(false)
 const rateFilter = ref('')
 
-const showImg = (url) => showImage(imgProxyUrl(url))
+const showImg = (url, referer) => showImage(imgProxyUrl(url, 0, referer))
 
 // 构建带评分筛选的搜索参数
 const _buildParams = (base = {}) => {

@@ -506,14 +506,14 @@ def api_tags():
 @route('/img_proxy')
 def api_img_proxy():
     from urllib.parse import urlsplit
-    from bustag.app.images import get_image, cache_dir
+    from bustag.app.images import get_image, cache_dir, can_accelerate
     url = request.query.get('url', '')
     if urlsplit(url).scheme not in ('http', 'https'):
         response.status = 400
         return 'Invalid image URL'
     try:
         width = int(request.query.get('w', 0))
-        path, data, mime = get_image(url, width)
+        path, data, mime = get_image(url, width, referer=request.query.get('referer'))
     except (ValueError, TypeError) as exc:
         response.status = 400
         return str(exc)
@@ -523,7 +523,7 @@ def api_img_proxy():
     if path:
         result = static_file(os.path.basename(path), root=cache_dir(), mimetype=mime)
         result.set_header('Cache-Control', 'public, max-age=86400')
-        if os.environ.get('BUSTAG_ACCEL_IMAGES') == '1':
+        if can_accelerate(path):
             result.set_header('X-Accel-Redirect', '/_image_cache/' + os.path.basename(path))
         return result
     response.content_type = mime

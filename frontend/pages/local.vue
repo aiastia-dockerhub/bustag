@@ -15,7 +15,7 @@
     <div v-for="(localItem, index) in items" :key="localItem.id" class="card-item">
       <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-5 col-lg-4">
-          <CoverImage :src="localItem.item.cover_img_url" :priority="index === 0" @click="showImg(localItem.item.cover_img_url)" />
+          <CoverImage :src="localItem.item.cover_img_url" :referer="localItem.item.url" :priority="index === 0" @click="showImg(localItem.item.cover_img_url, localItem.item.url)" />
         </div>
         <div class="col-12 col-sm-6 col-md-4 col-lg-5 d-flex flex-column">
           <h6 class="mb-1 fw-bold">{{ localItem.item.fanhao }}</h6>
@@ -56,7 +56,7 @@ const { showImage } = useImageModal()
 const items = ref([])
 const pageInfo = ref(null)
 
-const showImg = (url) => showImage(imgProxyUrl(url))
+const showImg = (url, referer) => showImage(imgProxyUrl(url, 0, referer))
 
 const applyResponse = (res) => {
     items.value = res.items

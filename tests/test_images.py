@@ -16,7 +16,7 @@ def make_image(size=(1600, 1000)):
 
 def test_same_image_download_is_coalesced(monkeypatch):
     calls = []
-    def download(url):
+    def download(url, referer=None):
         calls.append(url)
         time.sleep(0.03)
         return make_image()
@@ -44,7 +44,7 @@ def test_cache_pruning(monkeypatch):
 
 
 def test_image_route_streams_and_supports_etag(monkeypatch):
-    monkeypatch.setattr(images, '_download', lambda url: make_image())
+    monkeypatch.setattr(images, '_download', lambda url, referer=None: make_image())
     query = {'QUERY_STRING': 'url=https%3A%2F%2Fexample.com%2Fcover.jpg&w=480'}
     status, headers, body = call_app(bottle.default_app(), 'GET', '/img_proxy', headers=query)
     assert status == 200 and headers['Content-Type'] == 'image/webp'
@@ -52,3 +52,51 @@ def test_image_route_streams_and_supports_etag(monkeypatch):
     status, _, body = call_app(bottle.default_app(), 'GET', '/img_proxy', headers={
         **query, 'HTTP_IF_NONE_MATCH': headers['Etag']})
     assert status == 304 and not body
+
+
+def test_download_carries_source_referer(monkeypatch):
+    from unittest.mock import MagicMock
+    client = MagicMock()
+    response = client.get.return_value.__enter__.return_value
+    response.iter_content.return_value = [make_image()]
+    monkeypatch.setattr(images, 'session', lambda: client)
+    source = 'https://bus.example/movie/TEST-001'
+    assert images._download('https://cdn.example/cover.jpg', source)
+    headers = client.get.call_args.kwargs['headers']
+    assert headers['Referer'] == source
+    assert 'AppleWebKit' in headers['User-Agent']
+
+
+def test_configured_referer_fallback(monkeypatch):
+    monkeypatch.setitem(images.APP_CONFIG, 'download.javbus_url', 'https://bus.example/')
+    monkeypatch.delitem(images.APP_CONFIG, 'download.img_referer', raising=False)
+    assert images._source_referer() == 'https://bus.example/'
+    monkeypatch.setitem(images.APP_CONFIG, 'download.img_referer', 'https://source.example/')
+    assert images._source_referer() == 'https://source.example/'
+    assert images._source_referer('https://movie.example/ABC-123') == 'https://source.example/'
+    monkeypatch.delitem(images.APP_CONFIG, 'download.img_referer')
+    assert images._source_referer('https://movie.example/ABC-123') == 'https://movie.example/ABC-123'
+
+
+def test_cached_images_are_readable_by_nginx(tmp_path, monkeypatch):
+    import stat
+    monkeypatch.setattr(images, '_download', lambda url, referer=None: make_image())
+    path, _, _ = images.get_image('https://example.com/cover.jpg', 480)
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o644
+    original = images.cache_path('https://example.com/cover.jpg')
+    assert stat.S_IMODE(os.stat(original).st_mode) == 0o644
+    monkeypatch.setenv('BUSTAG_ACCEL_IMAGES', '1')
+    os.chmod(path, 0o600)
+    # Even when the private pytest directory prevents acceleration, old files are repaired.
+    images.can_accelerate(path)
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o644
+    assert images.can_accelerate(path) is False
+
+
+def test_proxy_falls_back_when_nginx_cannot_read(monkeypatch):
+    monkeypatch.setenv('BUSTAG_ACCEL_IMAGES', '1')
+    monkeypatch.setattr(images, '_download', lambda url, referer=None: make_image())
+    status, headers, body = call_app(bottle.default_app(), 'GET', '/img_proxy', headers={
+        'QUERY_STRING': 'url=https%3A%2F%2Fexample.com%2Fcover.jpg&w=480'})
+    assert status == 200 and body[:4] == b'RIFF'
+    assert 'X-Accel-Redirect' not in headers
