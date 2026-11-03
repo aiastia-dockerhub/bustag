@@ -162,12 +162,6 @@
             <li v-for="item in previewItems" :key="item.fanhao">
               <label class="preview-item">
                 <input type="checkbox" v-model="item.checked" />
-                <img
-                  class="preview-cover"
-                  :src="imgProxyUrl(item.img, 160, item.url)"
-                  loading="lazy"
-                  alt=""
-                />
                 <span class="preview-fanhao">{{ item.fanhao }}</span>
                 <span class="preview-item-title text-truncate">{{
                   item.title || "（无标题）"
@@ -429,7 +423,11 @@ textarea.form-control {
   margin: 0 0 16px;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
+}
+.preview-list li {
+  min-width: 0;
 }
 .preview-item {
   display: flex;
@@ -439,6 +437,7 @@ textarea.form-control {
   border-radius: 8px;
   cursor: pointer;
   font-size: 12px;
+  min-width: 0;
 }
 .preview-item:hover {
   background: var(--surface-soft);
@@ -447,21 +446,14 @@ textarea.form-control {
   flex: 0 0 auto;
   accent-color: var(--accent);
 }
-.preview-cover {
-  width: 64px;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-  border-radius: 5px;
-  background: #f5f5f5;
-  flex: 0 0 auto;
-}
 .preview-fanhao {
   font-weight: 600;
   color: var(--ink);
-  min-width: 90px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .preview-item-title {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   color: var(--muted);
 }
