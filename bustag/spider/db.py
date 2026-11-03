@@ -477,6 +477,28 @@ def get_star_tags():
     return [{'id': t.id, 'value': t.value} for t in tags]
 
 
+def get_items_by_keyword(keyword, page=1, page_size=10, rate_filter=None, exact_fanhao=None):
+    """Search titles and catalogue numbers with database pagination and rating filters."""
+    clause = (Item.fanhao == exact_fanhao) if exact_fanhao else (
+        Item.fanhao.contains(keyword) | Item.title.contains(keyword))
+    q = Item.select().where(clause)
+    if rate_filter in ('liked', 'disliked', 'recommended', 'unrated'):
+        q = q.join(ItemRate, JOIN.LEFT_OUTER, on=(ItemRate.item_id == Item.fanhao))
+        if rate_filter == 'unrated':
+            q = q.where(ItemRate.id.is_null())
+        elif rate_filter == 'recommended':
+            q = q.where(ItemRate.rate_type == RATE_TYPE.SYSTEM_RATE)
+        else:
+            q = q.where(ItemRate.rate_type == RATE_TYPE.USER_RATE,
+                        ItemRate.rate_value == (RATE_VALUE.LIKE if rate_filter == 'liked' else RATE_VALUE.DISLIKE))
+    q = q.order_by(Item.add_day.desc(), Item.release_date.desc(), Item.id.asc())
+    total = q.count()
+    items = get_tags_for_items(q.paginate(page, page_size))
+    for item in items:
+        Item.loadit(item)
+    return items, (total, (total + page_size - 1) // page_size, page, page_size)
+
+
 def get_items_by_tag_id(tag_id, page=1, page_size=10, rate_filter=None):
     '''
     按标签 ID 搜索关联的 Item，支持分页和评分筛选

@@ -214,7 +214,7 @@ img_cache_enabled = true
 | `/api/tagit` | GET | 打标列表（未评分影片），参数：`like`, `page`, `type` |
 | `/api/tag/<fanhao>` | POST | 打标操作，body：`{"rate_value": 1}` |
 | `/api/correct/<fanhao>` | POST | 推荐反馈（确认/纠正推荐），body：`{"is_correct": true}` |
-| `/api/search` | GET | 搜索影片，参数：`q`（番号）, `tag_id`, `page` |
+| `/api/search` | GET | 搜索影片，参数：`q`（番号或影片名称，支持模糊搜索）, `tag_id`, `star_id`, `rate_filter`, `page` |
 
 ### 本地文件
 

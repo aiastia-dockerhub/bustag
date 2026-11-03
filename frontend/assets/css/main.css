@@ -1193,3 +1193,22 @@ a:focus-visible {
 body:has(.image-preview[open]) {
   overflow: hidden;
 }
+
+/* Searchable dictionaries keep long type and actor lists easy to narrow down. */
+.search-select { position: relative; min-width: 0; }
+.search-select-input { position: relative; }
+.search-select-input input { padding-right: 38px; }
+.search-select-clear { position: absolute; right: 0; top: 0; width: 38px; height: 100%; border: 0; background: transparent; color: var(--muted); font-size: 22px; }
+.search-select-popup { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; margin-top: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 30px rgb(20 40 50 / 12%); overflow: hidden; }
+.search-select-count, .search-select-empty { padding: 10px 12px; font-size: 12px; color: var(--muted); margin: 0; }
+.search-select-popup ul { list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
+.search-select-popup li { padding: 12px 10px; min-height: 44px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
+.search-select-popup li:hover, .search-select-popup li.active, .search-select-popup li[aria-selected="true"] { color: var(--accent); background: var(--accent-soft); }
+.search-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rating-filter { grid-column: 1 / -1; margin: 0; padding: 0; border: 0; min-width: 0; }
+.rating-filter legend { float: none; width: auto; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.rating-filter-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.rating-filter-options button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.rating-filter-options button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.rating-filter-options button:disabled { opacity: .6; }
+@media (max-width: 575px) { .search-filters { grid-template-columns: minmax(0, 1fr); } }

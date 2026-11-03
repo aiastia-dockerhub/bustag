@@ -423,7 +423,7 @@ def api_search():
     from bustag.spider.db import Item, RATE_TYPE
     from bustag.spider import db as db_module
 
-    query = request.query.get('q', '').strip()
+    query = request.query.getunicode('q', '').strip()
     tag_id = request.query.get('tag_id', '').strip()
     star_id = request.query.get('star_id', '').strip()
     rate_filter = request.query.get('rate_filter', '').strip()
@@ -441,15 +441,13 @@ def api_search():
         normalized = _normalize_fanhao(query)
         item = Item.get_by_fanhao(normalized) if normalized else None
         if item:
-            item = db_module.get_tags_for_items(db_module.Item.select().where(db_module.Item.id == item.id))[0]
-            Item.loadit(item)
-            # 查询打标状态
-            item_rate = db_module.ItemRate.get_by_fanhao(item.fanhao)
-            item.rate_value = item_rate.rate_value if item_rate else None
-            item.rate_type = item_rate.rate_type if item_rate else None
+            matches, _ = db_module.get_items_by_keyword(
+                query, rate_filter=rate_filter, exact_fanhao=item.fanhao)
+            item = matches[0] if matches else None
+            _enrich_items_with_rate(matches)
         else:
-            # 精确未命中，按关键词模糊搜索（SQLite LIKE 默认大小写不敏感）
-            tag_items = Item.search_by_fanhao(query.strip().upper())
+            tag_items, page_info = db_module.get_items_by_keyword(
+                query, page=page, rate_filter=rate_filter)
             _enrich_items_with_rate(tag_items)
     elif tag_id:
         tag_items, page_info = db_module.get_items_by_tag_id(

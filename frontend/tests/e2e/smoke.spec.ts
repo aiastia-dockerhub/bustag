@@ -27,7 +27,8 @@ test('SSR authentication, hydration, thumbnails, model tasks and mobile layout',
  await page.getByRole('button',{name:'喜欢',exact:true}).click();
  await expect(page.locator('.card-item')).toHaveCount(10);
  await page.goto('http://127.0.0.1:3900/search');
- await expect(page.locator('select').first().locator('option')).toHaveCount(2);
+ await page.getByRole('combobox', { name: '类型标签' }).click();
+ await expect(page.getByRole('option', { name: 'Smoke genre' })).toBeVisible();
  await page.goto('http://127.0.0.1:3900/model');
  const submitted=page.waitForResponse(res=>res.url().endsWith('/api/do-training')&&res.status()===202);
  await page.getByRole('button',{name:'开始训练'}).click();

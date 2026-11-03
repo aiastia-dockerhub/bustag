@@ -104,7 +104,7 @@ const navigation = [
     title: "搜索资料库",
     eyebrow: "EXPLORE",
     icon: "search",
-    description: "通过番号、类型或演员，找到你想看的内容。",
+    description: "通过番号、影片名称、类型或演员，找到你想看的内容。",
   },
   {
     path: "/local",
