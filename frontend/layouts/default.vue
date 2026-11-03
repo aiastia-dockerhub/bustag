@@ -123,6 +123,14 @@ const navigation = [
     description: "让你的选择变成更准确的推荐，查看和管理模型表现。",
   },
   {
+    path: "/add_data",
+    label: "批量添加",
+    title: "批量添加影片",
+    eyebrow: "IMPORT",
+    icon: "download",
+    description: "输入演员 ID 或搜索关键词，预览勾选后批量抓取有磁力链接的影片入库。",
+  },
+  {
     path: "/load_db",
     label: "数据管理",
     title: "数据管理",

@@ -108,6 +108,29 @@ def parse_movie_list_item(movie_item):
     }
 
 
+def parse_preview_item(movie_item):
+    '''
+    解析影片列表项为预览候选信息（不入库，供批量添加前预览勾选）
+
+    Args:
+        movie_item: dict - 列表 API 返回的单个影片 JSON
+
+    Returns:
+        dict: fanhao/title/img/date
+    '''
+    movie_id = movie_item.get('id', '')
+    title = movie_item.get('title', '')
+    # 列表返回的 title 格式为 "SSIS-406 完整标题"，分离番号便于展示
+    if movie_id and title.startswith(movie_id):
+        title = title[len(movie_id):].strip()
+    return {
+        'fanhao': movie_id,
+        'title': title,
+        'img': _fix_img_url(movie_item.get('img', '')),
+        'date': movie_item.get('date', ''),
+    }
+
+
 def create_tag(tag_type, tag_value, tag_link):
     '''
     创建标签对象

@@ -28,14 +28,32 @@ def execute(job):
         return result
     if job.kind == 'clear':
         return clf.clear_recommend()
+    if job.kind == 'preview':
+        from bustag.spider import bus_spider
+        sources = ([{'type': 'star', 'value': s} for s in payload.get('stars') or []]
+                   + [{'type': 'keyword', 'value': k} for k in payload.get('keywords') or []])
+        progress(stage='预览候选影片', processed=0)
+        return bus_spider.preview_sources(
+            sources, pages=payload.get('pages', 1),
+            movie_type=payload.get('movie_type'), progress=progress)
     if job.kind == 'download':
         from bustag.spider import bus_spider
         before = Item.select(fn.MAX(Item.id)).scalar() or 0
-        progress(stage='爬取影片', processed=0)
         fanhaos = payload.get('fanhaos')
-        if fanhaos:
+        stars = payload.get('stars') or []
+        keywords = payload.get('keywords') or []
+        if stars or keywords:
+            # 按演员 ID / 搜索关键词批量添加（仅含有磁力链接的影片）
+            sources = ([{'type': 'star', 'value': s} for s in stars]
+                       + [{'type': 'keyword', 'value': k} for k in keywords])
+            progress(stage='批量抓取影片', processed=0)
+            saved = bus_spider.batch_download(
+                sources, pages=payload.get('pages', 1), progress=progress)
+        elif fanhaos:
+            progress(stage='爬取影片', processed=0)
             saved = bus_spider.download_by_fanhaos(fanhaos, movie_type=payload.get('movie_type', 'mixed'))
         else:
+            progress(stage='爬取影片', processed=0)
             saved = bus_spider.download_movies()
         result = {'saved': saved}
         if saved:

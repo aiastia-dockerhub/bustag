@@ -45,6 +45,70 @@ def test_job_submission_is_async():
     assert json.loads(body)['job']['state'] == 'queued'
 
 
+def test_add_data_rejects_empty_input():
+    status, _, _ = call_app(bottle.default_app(), 'POST', '/api/add_data', body={'stars': '', 'keywords': []})
+    assert status == 400
+
+
+def test_add_data_parses_and_submits_job():
+    from bustag.app.tasks import Job
+    body = {'stars': 'qs6, rsv\nqs6', 'keywords': '三上、深田', 'pages': 3}
+    status, _, body = call_app(bottle.default_app(), 'POST', '/api/add_data', body=body)
+    assert status == 202
+    job = Job.get_by_id(json.loads(body)['job']['id'])
+    payload = json.loads(job.payload)
+    assert payload['stars'] == ['qs6', 'rsv']  # split, cleaned, deduplicated
+    assert payload['keywords'] == ['三上', '深田']
+    assert payload['pages'] == 3
+
+
+def test_add_data_clamps_pages():
+    from bustag.app.tasks import Job
+    status, _, body = call_app(bottle.default_app(), 'POST', '/api/add_data',
+                               body={'stars': 'qs6', 'pages': 999})
+    assert status == 202
+    payload = json.loads(Job.get_by_id(json.loads(body)['job']['id']).payload)
+    assert payload['pages'] == 30
+
+
+def test_add_data_with_fanhaos_submits_download():
+    from bustag.app.tasks import Job
+    body = {'fanhaos': 'SSIS-401\nSSIS-402', 'movie_type': 'normal'}
+    status, _, body = call_app(bottle.default_app(), 'POST', '/api/add_data', body=body)
+    assert status == 202
+    job = Job.get_by_id(json.loads(body)['job']['id'])
+    assert job.kind == 'download'
+    payload = json.loads(job.payload)
+    assert payload['fanhaos'] == ['SSIS-401', 'SSIS-402']
+    assert payload['movie_type'] == 'normal'
+
+
+def test_add_data_drops_invalid_movie_type():
+    from bustag.app.tasks import Job
+    status, _, body = call_app(bottle.default_app(), 'POST', '/api/add_data',
+                               body={'stars': 'qs6', 'movie_type': 'weird'})
+    assert status == 202
+    payload = json.loads(Job.get_by_id(json.loads(body)['job']['id']).payload)
+    assert payload['movie_type'] is None
+
+
+def test_add_data_preview_submits_preview_job():
+    from bustag.app.tasks import Job
+    body = {'stars': 'qs6', 'keywords': '三上', 'pages': 2, 'movie_type': 'uncensored'}
+    status, _, body = call_app(bottle.default_app(), 'POST', '/api/add_data/preview', body=body)
+    assert status == 202
+    job = Job.get_by_id(json.loads(body)['job']['id'])
+    assert job.kind == 'preview'
+    payload = json.loads(job.payload)
+    assert payload['stars'] == ['qs6'] and payload['keywords'] == ['三上']
+    assert payload['pages'] == 2 and payload['movie_type'] == 'uncensored'
+
+
+def test_add_data_preview_rejects_empty_input():
+    status, _, _ = call_app(bottle.default_app(), 'POST', '/api/add_data/preview', body={'stars': ' '})
+    assert status == 400
+
+
 def test_cache_is_bounded():
     for index in range(1000):
         api._cache_set(str(index), {'value': index})

@@ -402,6 +402,83 @@ def api_load_db():
     return _json_response({'msg': msg, 'errmsg': errmsg})
 
 
+def _parse_batch_input(value):
+    '''
+    解析批量添加输入：字符串（换行/逗号分隔）或列表，统一返回去重后的干净列表
+    '''
+    if value is None:
+        return []
+    if isinstance(value, str):
+        parts = re.split(r'[\n\r,，、;；]+', value)
+    elif isinstance(value, (list, tuple)):
+        parts = value
+    else:
+        return []
+    seen = set()
+    result = []
+    for part in parts:
+        item = str(part).strip()
+        if item and item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
+MOVIE_TYPES = ('normal', 'uncensored')
+
+
+def _add_data_params(payload):
+    '''
+    解析批量添加/预览请求的公共参数
+
+    Returns:
+        tuple: (stars, keywords, pages, movie_type)
+    '''
+    stars = _parse_batch_input(payload.get('stars'))
+    keywords = _parse_batch_input(payload.get('keywords'))
+    try:
+        pages = max(1, min(int(payload.get('pages') or 1), 30))
+    except (TypeError, ValueError):
+        pages = 1
+    movie_type = payload.get('movie_type')
+    if movie_type not in MOVIE_TYPES:
+        movie_type = None
+    return stars, keywords, pages, movie_type
+
+
+@route('/api/add_data', method='POST')
+def api_add_data():
+    """批量添加数据：按演员 ID/搜索关键词抓取，或按预览勾选的番号入库（仅含有磁力链接的）"""
+    payload = request.json or {}
+    fanhaos = _parse_batch_input(payload.get('fanhaos'))
+    stars, keywords, pages, movie_type = _add_data_params(payload)
+
+    if fanhaos:
+        # 预览勾选后的番号直接入库，类型沿用预览时选择的
+        return _submit_task('download', {'fanhaos': fanhaos, 'movie_type': movie_type or 'mixed'})
+
+    if not stars and not keywords:
+        response.status = 400
+        return _json_response({'error': '请至少输入一个演员 ID 或搜索关键词'})
+
+    return _submit_task('download', {'stars': stars, 'keywords': keywords,
+                                     'pages': pages, 'movie_type': movie_type})
+
+
+@route('/api/add_data/preview', method='POST')
+def api_add_data_preview():
+    """预览批量添加候选：按演员 ID/搜索关键词抓取列表（不入库，仅含有磁力链接的）"""
+    payload = request.json or {}
+    stars, keywords, pages, movie_type = _add_data_params(payload)
+
+    if not stars and not keywords:
+        response.status = 400
+        return _json_response({'error': '请至少输入一个演员 ID 或搜索关键词'})
+
+    return _submit_task('preview', {'stars': stars, 'keywords': keywords,
+                                    'pages': pages, 'movie_type': movie_type})
+
+
 def _enrich_items_with_rate(items, rate_filter=''):
     '''
     为搜索结果添加打标状态（筛选已在数据库层面完成）

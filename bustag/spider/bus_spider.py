@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 import requests
 from .api_client import get_movies, get_movie_detail, search_movies
-from .parser import parse_movie_detail
+from .parser import parse_movie_detail, parse_preview_item
 from .db import save, Item, SkipItem
 from bustag.util import APP_CONFIG, logger
 
@@ -117,6 +117,118 @@ def download_movies(pages=None):
     return total_saved
 
 
+def _resolve_movie_type(movie_type=None):
+    '''影片类型：显式指定优先，否则用配置 download.movie_type（默认 normal）'''
+    return movie_type or APP_CONFIG.get('download.movie_type', 'normal')
+
+
+def _clean_sources(sources):
+    '''清洗批量来源列表：去空白、丢空值'''
+    cleaned = []
+    for source in sources or []:
+        value = (source.get('value') or '').strip()
+        if value:
+            cleaned.append({'type': source.get('type', 'keyword'), 'value': value})
+    return cleaned
+
+
+def _process_movie_pages(fetch_page, pages, label, handle_movie, progress=None):
+    '''
+    逐页抓取影片列表并逐部处理（公共骨架）
+
+    Args:
+        fetch_page: callable(page) -> dict，返回含 movies 列表的结果
+        pages: 要抓取的页数
+        label: 日志与进度显示用的来源描述
+        handle_movie: callable(movie) -> bool，返回 True 表示是新处理的有效影片
+        progress: 可选回调 progress(stage=..., processed=...)，每处理一部影片调用一次
+
+    Returns:
+        tuple: (new_count, processed_count)
+    '''
+    total_new = 0
+    total_processed = 0
+    consecutive_failures = 0
+
+    for page in range(1, pages + 1):
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f'[{now_str}] Fetching movie list page {page}/{pages} ({label})')
+        print(f'[{now_str}] process page {page} ({label})')
+
+        try:
+            result = fetch_page(page)
+            consecutive_failures = 0  # 请求成功，重置计数
+        except Exception as e:
+            consecutive_failures += 1
+            logger.error(f'Failed to fetch page {page}: {e}')
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                logger.error(
+                    f'API consecutive failures reached {MAX_CONSECUTIVE_FAILURES}, '
+                    f'stopping download ({label}). '
+                    f'Please check if javbus-api service is running.'
+                )
+                print(f'Too many failures, stopping ({label})')
+                break
+            continue
+
+        movies = result.get('movies', [])
+        if not movies:
+            logger.info(f'No more movies on page {page}, stopping')
+            break
+
+        page_new = 0
+        for movie in movies:
+            movie_id = movie.get('id', '')
+            if not movie_id:
+                continue
+
+            total_processed += 1
+            if handle_movie(movie):
+                total_new += 1
+                page_new += 1
+
+            if progress:
+                progress(stage=label, processed=total_processed)
+
+            # 请求间隔已由 api_client 全局控制，无需额外等待
+
+        # 如果整页都没有新影片，说明后面的页更旧，提前停止
+        if page_new == 0:
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f'[{now_str}] Page {page} has no new movies, stopping early')
+            print(f'[{now_str}] Page {page} all duplicates, stopping early')
+            break
+
+        # 分页间隔
+        time.sleep(2)
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logger.info(f'[{now_str}] Process {label} complete: processed {total_processed}, new {total_new}')
+    return total_new, total_processed
+
+
+def _save_movies_from_pages(fetch_page, pages, label, movie_type='normal', progress=None):
+    '''
+    逐页抓取影片列表并保存详情
+
+    Args:
+        fetch_page: callable(page) -> dict，返回含 movies 列表的结果
+        pages: 要抓取的页数
+        label: 来源描述（如 '演员 qs6'）
+        movie_type: 影片类型（normal/uncensored）
+        progress: 可选回调 progress(stage=..., processed=...)
+
+    Returns:
+        tuple: (saved_count, processed_count)
+    '''
+
+    def handle_movie(movie):
+        return fetch_and_save_movie(movie.get('id', ''), movie_type=movie_type)
+
+    return _process_movie_pages(
+        fetch_page, pages, f'抓取{label}', handle_movie, progress)
+
+
 def _download_by_type(pages, magnet, movie_type):
     '''
     按影片类型批量下载
@@ -129,62 +241,11 @@ def _download_by_type(pages, magnet, movie_type):
     Returns:
         tuple: (saved_count, processed_count)
     '''
-    total_saved = 0
-    total_processed = 0
-    consecutive_failures = 0
 
-    for page in range(1, pages + 1):
-        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logger.info(f'[{now_str}] Fetching movie list page {page}/{pages} (type={movie_type})')
-        print(f'[{now_str}] process page {page} (type={movie_type})')
+    def fetch_page(page):
+        return get_movies(page=page, magnet=magnet, movie_type=movie_type)
 
-        try:
-            result = get_movies(page=page, magnet=magnet, movie_type=movie_type)
-            consecutive_failures = 0  # 请求成功，重置计数
-        except Exception as e:
-            consecutive_failures += 1
-            logger.error(f'Failed to fetch page {page}: {e}')
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                logger.error(
-                    f'API consecutive failures reached {MAX_CONSECUTIVE_FAILURES}, '
-                    f'stopping download (type={movie_type}). '
-                    f'Please check if javbus-api service is running.'
-                )
-                print(f'Too many failures, stopping (type={movie_type})')
-                break
-            continue
-
-        movies = result.get('movies', [])
-        if not movies:
-            logger.info(f'No more movies on page {page}, stopping')
-            break
-
-        page_saved = 0
-        for movie in movies:
-            movie_id = movie.get('id', '')
-            if not movie_id:
-                continue
-
-            total_processed += 1
-            if fetch_and_save_movie(movie_id, movie_type=movie_type):
-                total_saved += 1
-                page_saved += 1
-
-            # 请求间隔已由 api_client 全局控制，无需额外等待
-
-        # 如果整页都是重复的，说明后面的页更旧，提前停止
-        if page_saved == 0:
-            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f'[{now_str}] Page {page} has no new movies, stopping early')
-            print(f'[{now_str}] Page {page} all duplicates, stopping early')
-            break
-
-        # 分页间隔
-        time.sleep(2)
-
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    logger.info(f'[{now_str}] Download type={movie_type} complete: processed {total_processed}, saved {total_saved}')
-    return total_saved, total_processed
+    return _save_movies_from_pages(fetch_page, pages, f'type={movie_type}', movie_type=movie_type)
 
 
 def detect_movie_type(fanhao):
@@ -251,32 +312,148 @@ def download_by_fanhaos(fanhaos, movie_type='mixed'):
     return total_saved
 
 
-def search_and_download(keyword, pages=1):
+def search_and_download(keyword, pages=1, progress=None, movie_type=None):
     '''
-    搜索并下载影片数据
+    搜索并下载影片数据（仅含有磁力链接的影片）
 
     Args:
         keyword: 搜索关键字
         pages: 下载页数
+        progress: 可选回调 progress(stage=..., processed=...)
+        movie_type: 'normal'/'uncensored'，不传则用配置 download.movie_type
 
     Returns:
         int: 成功保存的数量
     '''
-    total_saved = 0
+    movie_type = _resolve_movie_type(movie_type)
     magnet = APP_CONFIG.get('download.magnet', 'exist')
-    movie_type = APP_CONFIG.get('download.movie_type', 'normal')
 
-    for page in range(1, pages + 1):
-        try:
-            result = search_movies(keyword=keyword, page=page, magnet=magnet, movie_type=movie_type)
-        except Exception as e:
-            logger.error(f'Search failed for "{keyword}" page {page}: {e}')
-            continue
+    def fetch_page(page):
+        return search_movies(keyword=keyword, page=page, magnet=magnet, movie_type=movie_type)
 
-        movies = result.get('movies', [])
-        for movie in movies:
-            movie_id = movie.get('id', '')
-            if movie_id and fetch_and_save_movie(movie_id):
-                total_saved += 1
+    saved, _ = _save_movies_from_pages(
+        fetch_page, pages, f'关键词 {keyword}', movie_type=movie_type, progress=progress)
+    return saved
+
+
+def download_by_star(star_id, pages=1, progress=None, movie_type=None):
+    '''
+    按演员 ID 下载影片数据（仅含有磁力链接的影片）
+
+    Args:
+        star_id: 演员 ID（JavBus 演员页 /star/<id> 中的 ID，如 qs6）
+        pages: 下载页数
+        progress: 可选回调 progress(stage=..., processed=...)
+        movie_type: 'normal'/'uncensored'，不传则用配置 download.movie_type
+
+    Returns:
+        int: 成功保存的数量
+    '''
+    movie_type = _resolve_movie_type(movie_type)
+    magnet = APP_CONFIG.get('download.magnet', 'exist')
+
+    def fetch_page(page):
+        return get_movies(page=page, magnet=magnet, movie_type=movie_type,
+                          filter_type='star', filter_value=star_id)
+
+    saved, _ = _save_movies_from_pages(
+        fetch_page, pages, f'演员 {star_id}', movie_type=movie_type, progress=progress)
+    return saved
+
+
+def batch_download(sources, pages=1, progress=None, movie_type=None):
+    '''
+    按演员 ID / 搜索关键词混合批量下载影片（仅含有磁力链接的影片）
+
+    Args:
+        sources: list of dict，每项为 {'type': 'star'|'keyword', 'value': str}
+        pages: 每个来源下载的页数
+        progress: 可选回调 progress(stage=..., processed=...)
+        movie_type: 'normal'/'uncensored'，不传则用配置 download.movie_type
+
+    Returns:
+        int: 成功保存的数量
+    '''
+    cleaned = _clean_sources(sources)
+    movie_type = _resolve_movie_type(movie_type)
+
+    total_saved = 0
+    for i, source in enumerate(cleaned):
+        if progress:
+            # 外层标注整体进度（第几个来源），内层继续更新 processed
+            source_progress = lambda stage, processed, i=i: progress(
+                stage=f'{stage}（{i + 1}/{len(cleaned)}）', processed=processed)
+        else:
+            source_progress = None
+
+        if source['type'] == 'star':
+            total_saved += download_by_star(
+                source['value'], pages=pages, progress=source_progress, movie_type=movie_type)
+        else:
+            total_saved += search_and_download(
+                source['value'], pages=pages, progress=source_progress, movie_type=movie_type)
 
     return total_saved
+
+
+def preview_sources(sources, pages=1, movie_type=None, progress=None):
+    '''
+    抓取演员 ID / 搜索关键词的候选影片列表（不入库），供批量添加前预览勾选。
+    只返回有磁力链接的影片；已入库或已在跳过列表中的影片会被过滤。
+
+    Args:
+        sources: list of dict，每项为 {'type': 'star'|'keyword', 'value': str}
+        pages: 每个来源抓取的页数
+        movie_type: 'normal'/'uncensored'，不传则用配置 download.movie_type
+        progress: 可选回调 progress(stage=..., processed=...)
+
+    Returns:
+        dict: {'movies': [{'fanhao', 'title', 'img', 'date', 'source'}], 'skipped': 过滤数量}
+    '''
+    movie_type = _resolve_movie_type(movie_type)
+    magnet = APP_CONFIG.get('download.magnet', 'exist')
+    cleaned = _clean_sources(sources)
+
+    candidates = []
+    seen = set()
+    skipped = 0
+
+    for i, source in enumerate(cleaned):
+        value = source['value']
+        if progress:
+            source_progress = lambda stage, processed, i=i: progress(
+                stage=f'{stage}（{i + 1}/{len(cleaned)}）', processed=processed)
+        else:
+            source_progress = None
+
+        if source['type'] == 'star':
+            label = f'演员 {value}'
+
+            def fetch_page(page, value=value):
+                return get_movies(page=page, magnet=magnet, movie_type=movie_type,
+                                  filter_type='star', filter_value=value)
+        else:
+            label = f'关键词 {value}'
+
+            def fetch_page(page, value=value):
+                return search_movies(keyword=value, page=page, magnet=magnet, movie_type=movie_type)
+
+        def handle_movie(movie):
+            nonlocal skipped
+            movie_id = movie.get('id', '')
+            if movie_id in seen:
+                return False
+            seen.add(movie_id)
+            if Item.get_by_fanhao(movie_id) or SkipItem.is_skipped(movie_id):
+                skipped += 1
+                return False
+            item = parse_preview_item(movie)
+            javbus_url = APP_CONFIG.get('download.javbus_url', 'https://www.javbus.com')
+            item['url'] = f"{javbus_url}/{item['fanhao']}"
+            item['source'] = label
+            candidates.append(item)
+            return True
+
+        _process_movie_pages(fetch_page, pages, f'预览{label}', handle_movie, source_progress)
+
+    return {'movies': candidates, 'skipped': skipped}

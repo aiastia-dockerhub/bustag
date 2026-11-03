@@ -47,12 +47,12 @@ def serialize(job):
 
 
 def submit(kind, payload=None):
-    if kind not in ('train', 'recommend', 'clear', 'download'):
+    if kind not in ('train', 'recommend', 'clear', 'download', 'preview'):
         raise ValueError('未知任务类型')
     initialize()
     encoded = json.dumps(payload or {}, sort_keys=True)
-    # Only one active mutation of a given kind; downloads deduplicate identical inputs.
-    key = kind + (':' + hashlib.sha256(encoded.encode()).hexdigest() if kind == 'download' else '')
+    # Only one active mutation of a given kind; downloads/previews deduplicate identical inputs.
+    key = kind + (':' + hashlib.sha256(encoded.encode()).hexdigest() if kind in ('download', 'preview') else '')
     existing = Job.get_or_none(Job.active_key == key)
     if existing:
         return serialize(existing)
