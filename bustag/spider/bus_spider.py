@@ -176,7 +176,6 @@ def _process_movie_pages(fetch_page, pages, label, handle_movie, progress=None):
             logger.info(f'No more movies on page {page}, stopping')
             break
 
-        page_new = 0
         for movie in movies:
             movie_id = movie.get('id', '')
             if not movie_id:
@@ -185,19 +184,11 @@ def _process_movie_pages(fetch_page, pages, label, handle_movie, progress=None):
             total_processed += 1
             if handle_movie(movie):
                 total_new += 1
-                page_new += 1
 
             if progress:
                 progress(stage=label, processed=total_processed)
 
             # 请求间隔已由 api_client 全局控制，无需额外等待
-
-        # 如果整页都没有新影片，说明后面的页更旧，提前停止
-        if page_new == 0:
-            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f'[{now_str}] Page {page} has no new movies, stopping early')
-            print(f'[{now_str}] Page {page} all duplicates, stopping early')
-            break
 
         # 分页间隔
         time.sleep(2)

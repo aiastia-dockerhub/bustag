@@ -60,14 +60,16 @@ class TestDownloadByStar:
         assert mock_get_movies.call_args.kwargs['filter_value'] == 'qs6'
         assert mock_get_movies.call_args.kwargs['magnet'] == 'exist'
 
+    @patch('bustag.spider.bus_spider.time.sleep')
     @patch('bustag.spider.bus_spider.fetch_and_save_movie')
     @patch('bustag.spider.bus_spider.get_movies')
-    def test_download_by_star_stops_when_no_new_movies(self, mock_get_movies, mock_fetch):
+    def test_download_by_star_continues_past_duplicate_pages(self, mock_get_movies, mock_fetch, mock_sleep):
         mock_get_movies.return_value = _movie_list_response(1)
         mock_fetch.return_value = False  # all duplicates
-        result = download_by_star('qs6', pages=5)
+        result = download_by_star('qs6', pages=3)
         assert result == 0
-        assert mock_get_movies.call_count == 1  # page 2 never fetched
+        # 整页重复不代表后面页也重复，按指定页数抓完
+        assert mock_get_movies.call_count == 3
 
 
 class TestSearchAndDownload:
@@ -183,3 +185,16 @@ class TestPreviewSources:
         assert [m['fanhao'] for m in result['movies']] == ['SSIS-401', 'MIDV-001']
         assert result['movies'][1]['source'] == '关键词 三上'
         progress.assert_called_with(stage='预览关键词 三上（2/2）', processed=2)
+
+    @patch('bustag.spider.bus_spider.time.sleep')
+    @patch('bustag.spider.bus_spider.SkipItem.is_skipped', return_value=False)
+    @patch('bustag.spider.bus_spider.Item')
+    @patch('bustag.spider.bus_spider.get_movies')
+    def test_preview_continues_past_all_duplicate_page(
+            self, mock_get_movies, mock_item_cls, mock_skip, mock_sleep):
+        mock_item_cls.get_by_fanhao.return_value = MagicMock()  # 第一页全在库中
+        mock_get_movies.return_value = _preview_item_response()
+        result = preview_sources([{'type': 'star', 'value': 'qs6'}], pages=2)
+        assert result['movies'] == []
+        # 第一页全重复时仍继续抓第二页
+        assert mock_get_movies.call_count == 2
