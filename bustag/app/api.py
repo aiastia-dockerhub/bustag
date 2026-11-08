@@ -149,7 +149,7 @@ def api_index():
         if cached:
             return _json_response(cached)
 
-    from bustag.spider.db import get_items, RATE_TYPE, RATE_VALUE
+    from bustag.spider.db import get_items, RATE_TYPE
     from bustag.spider import db as db_module
 
     rate_type = RATE_TYPE.SYSTEM_RATE.value
@@ -182,7 +182,7 @@ def api_index():
 @route('/api/correct/<fanhao>', method='POST')
 def api_correct(fanhao):
     """推荐反馈"""
-    from bustag.spider.db import ItemRate, RATE_TYPE
+    from bustag.spider.db import ItemRate
 
     data = request.json or {}
     is_correct = data.get('is_correct', True)
@@ -211,7 +211,7 @@ def api_tagit():
     if cached:
         return _json_response(cached)
 
-    from bustag.spider.db import get_items, RATE_TYPE, RATE_VALUE
+    from bustag.spider.db import get_items, RATE_TYPE
 
     rate_type = None
     if rate_value is not None:
@@ -242,7 +242,7 @@ def api_tagit():
 @route('/api/tag/<fanhao>', method='POST')
 def api_tag(fanhao):
     """打标操作"""
-    from bustag.spider.db import ItemRate, RATE_TYPE
+    from bustag.spider.db import ItemRate
 
     data = request.json or {}
     rate_value = data.get('rate_value', 1)
@@ -278,7 +278,6 @@ def api_local():
 def api_local_fanhao():
     """上传番号"""
     from bustag.app.local import add_local_fanhao
-    from bustag.spider import bus_spider
     from bustag.app.schedule import add_download_job
 
     msg = ''
@@ -377,7 +376,6 @@ def api_job(job_id):
 def api_load_db():
     """上传数据库"""
     from bustag.app.local import load_tags_db
-    from bustag.spider import bus_spider
     from bustag.app.schedule import add_download_job
     from bustag.spider.db import DBError
     from bustag.util import get_data_path
@@ -497,7 +495,7 @@ def _enrich_items_with_rate(items, rate_filter=''):
 @route('/api/search')
 def api_search():
     """搜索"""
-    from bustag.spider.db import Item, RATE_TYPE
+    from bustag.spider.db import Item
     from bustag.spider import db as db_module
 
     query = request.query.getunicode('q', '').strip()

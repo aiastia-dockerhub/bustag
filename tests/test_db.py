@@ -1,5 +1,3 @@
-import datetime
-from peewee import fn
 from playhouse.test_utils import count_queries
 from bustag.spider.db import (Item, ItemRate, Tag, ItemTag, RATE_TYPE, db, get_items,
                               get_items_by_tag_id, get_feature_items, get_today_update_count,

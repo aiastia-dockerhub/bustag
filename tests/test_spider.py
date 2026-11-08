@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from bustag.spider.bus_spider import (
     fetch_and_save_movie, download_by_fanhaos, download_by_star,
     search_and_download, batch_download, preview_sources)

@@ -5,7 +5,7 @@ import configparser
 import warnings
 import pytz
 import datetime
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 # 抑制 tzlocal 的 /etc/timezone 弃用警告（来自 APScheduler 依赖）
 warnings.filterwarnings('ignore', message='.*tzlocal.*')

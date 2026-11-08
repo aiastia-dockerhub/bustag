@@ -14,7 +14,6 @@ import secrets
 import time
 import threading
 import json
-import bottle
 from bottle import route, request, response, hook, HTTPResponse
 from bustag.util import get_data_path, logger
 

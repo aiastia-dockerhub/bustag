@@ -1,6 +1,4 @@
-import json
 from datetime import date
-import numpy as np
 import pytest
 from bustag.model import classifier as clf
 from bustag.model.operations import model_operation, ModelBusyError

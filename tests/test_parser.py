@@ -1,4 +1,3 @@
-import pytest
 from bustag.spider.parser import parse_movie_detail, parse_movie_list_item, create_tag
 
 

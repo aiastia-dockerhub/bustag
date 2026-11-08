@@ -416,7 +416,7 @@ def get_local_items(page=1, page_size=10):
          .order_by(LocalItem.id.desc())
          )
     total_items = q.count()
-    if not page is None:
+    if page is not None:
         q = q.paginate(page, page_size)
 
     item_query = Item.select()

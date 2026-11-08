@@ -6,7 +6,7 @@
 import click
 import bustag.model.classifier as clf
 from bustag.spider import bus_spider
-from bustag.util import logger, APP_CONFIG
+from bustag.util import APP_CONFIG
 
 
 @click.command()

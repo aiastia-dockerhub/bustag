@@ -3,7 +3,7 @@ import bottle
 from playhouse.test_utils import count_queries
 from test_auth import call_app
 from bustag.app import api
-from bustag.spider.db import Item, ItemRate, Tag, touch_data
+from bustag.spider.db import Item, ItemRate, touch_data
 
 
 def test_search_rate_query_is_batched(seeded_data):
